@@ -253,8 +253,12 @@ const MAX_UNIPROT_BATCH_SIZE: usize = 100;
 // (many proxies/load balancers reject URLs above ~8KB).
 const MAX_UNIPROT_URL_LEN: usize = 3000;
 
+const UNIPROT_STREAM_BASE_URL: &str = "https://rest.uniprot.org/uniprotkb/search?query=";
+const UNIPROT_STREAM_SUFFIX: &str = "&format=json&size=500";
+/*
 const UNIPROT_STREAM_BASE_URL: &str = "https://rest.uniprot.org/uniprotkb/stream?query=";
 const UNIPROT_STREAM_SUFFIX: &str = "&format=json";
+ */
 
 fn build_uniprot_stream_url(accessions: &[String]) -> String {
     let query = accessions
