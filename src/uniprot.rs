@@ -1,7 +1,7 @@
 // ============================================================================
 // UniProt REST JSON model and fetch
 // ============================================================================
-
+use tracing::{info, warn};
 use crate::types::{UniProtCanonId, UniProtIsoId, UniProtId, EnsemblId};
 use crate::util::{with_retries, RateLimiter, RetryConfig, strip_version};
 use anyhow::{anyhow, Context, Result};
@@ -237,7 +237,7 @@ pub(crate) struct UniProtCrossReference {
 
 #[derive(Debug, serde::Deserialize)]
 struct UniProtSearchResponse {
-    results: Vec<UniProtEntry>,
+    results: Vec<serde_json::Value>,
 }
 
 const UNIPROT_REQUESTS_PER_SECOND: u32 = 50;
@@ -263,6 +263,56 @@ fn build_uniprot_stream_url(accessions: &[String]) -> String {
         .collect::<Vec<_>>()
         .join("+OR+");
     format!("{}{}{}", UNIPROT_STREAM_BASE_URL, query, UNIPROT_STREAM_SUFFIX)
+}
+
+/// An accession UniProt reports as no longer active.
+#[derive(Debug, Clone)]
+pub(crate) struct InactiveEntry {
+    pub(crate) accession: String,
+    /// e.g. "DELETED", "MERGED", "DEMERGED"
+    pub(crate) reason: String,
+    /// Replacement accession(s) for merged/demerged entries.
+    pub(crate) replaced_by: Vec<String>,
+}
+
+struct BatchResult {
+    entries: Vec<UniProtEntry>,
+    inactive: Vec<InactiveEntry>,
+}
+
+fn parse_batch(body: &str) -> Result<BatchResult> {
+    let parsed: UniProtSearchResponse =
+        serde_json::from_str(body).context("failed to parse UniProt stream response")?;
+
+    let mut entries = Vec::with_capacity(parsed.results.len());
+    let mut inactive = Vec::new();
+
+    for raw in parsed.results {
+        let accession = raw
+            .get("primaryAccession")
+            .and_then(|v| v.as_str())
+            .unwrap_or("<unknown>")
+            .to_string();
+
+        if raw.get("entryType").and_then(|v| v.as_str()) == Some("Inactive") {
+            let reason = raw.pointer("/inactiveReason/inactiveReasonType")
+                .and_then(|v| v.as_str())
+                .unwrap_or("UNKNOWN")
+                .to_string();
+            let replaced_by = raw.pointer("/inactiveReason/mergeDemergeTo")
+                .and_then(|v| v.as_array())
+                .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
+                .unwrap_or_default();
+            inactive.push(InactiveEntry { accession, reason, replaced_by });
+            continue;
+        }
+
+        let entry: UniProtEntry = serde_json::from_value(raw)
+            .with_context(|| format!("failed to parse UniProt entry {}", accession))?;
+        entries.push(entry);
+    }
+
+    Ok(BatchResult { entries, inactive })
 }
 
 /// Splits `accessions` into batches that respect both `MAX_UNIPROT_BATCH_SIZE`
@@ -301,7 +351,7 @@ async fn fetch_uniprot_batch(
     accessions: &[String],
     retry_config: &RetryConfig,
     client: &reqwest::Client,
-) -> Result<Vec<UniProtEntry>> {
+) -> Result<BatchResult> {
     with_retries(
         &format!("fetching {} UniProt entries", accessions.len()),
         retry_config,
@@ -326,9 +376,8 @@ async fn fetch_uniprot_batch(
                 .text()
                 .await
                 .context("failed to read UniProt response body")?;
-            let parsed: UniProtSearchResponse = serde_json::from_str(&body)
-                .context("failed to parse UniProt stream response")?;
-            Ok(parsed.results)
+
+            parse_batch(&body)
         },
     )
     .await
@@ -338,6 +387,8 @@ async fn fetch_uniprot_batch(
 /// enforcing a single global `UNIPROT_REQUESTS_PER_SECOND` cap shared by
 /// every in-flight batch. A batch that still fails after retries is
 /// treated as fatal to avoid silently missing entries.
+
+
 pub(crate) async fn fetch_uniprot_entries(
     accessions: &[UniProtCanonId],
     retry_config: &RetryConfig,
@@ -356,6 +407,7 @@ pub(crate) async fn fetch_uniprot_entries(
     let client = reqwest::Client::new();
 
     let mut by_accession: HashMap<String, UniProtEntry> = HashMap::new();
+    let mut inactive_all: Vec<InactiveEntry> = Vec::new();
     let mut done = 0usize;
 
     let mut results = stream::iter(batches)
@@ -371,16 +423,46 @@ pub(crate) async fn fetch_uniprot_entries(
         .buffer_unordered(MAX_CONCURRENT_UNIPROT_REQUESTS);
 
     while let Some(result) = results.next().await {
-        let entries = result?;
-        for entry in entries {
+        let batch = result?;
+        inactive_all.extend(batch.inactive);
+        for entry in batch.entries {
             by_accession.insert(entry.primary_accession.clone(), entry);
         }
         done += 1;
-        eprint!("\rFetched UniProt batch {}/{}", done, total);
-        use std::io::Write;
-        std::io::stderr().flush().ok();
+        info!("Fetched UniProt batch {}/{}", done, total);
     }
-    eprintln!();
+
+    if !inactive_all.is_empty() {
+        let listed: Vec<String> = inactive_all
+            .iter()
+            .map(|e| {
+                if e.replaced_by.is_empty() {
+                    format!("{} ({})", e.accession, e.reason)
+                } else {
+                    format!("{} ({} -> {})", e.accession, e.reason, e.replaced_by.join(", "))
+                }
+            })
+            .collect();
+        warn!(
+            "{} requested accessions are inactive in UniProt: {}",
+            inactive_all.len(),
+            listed.join("; ")
+        );
+    }
+
+    // Must run before the `remove` loop below, which drains `by_accession`.
+    let missing: Vec<&str> = accessions
+        .iter()
+        .map(|id| id.as_str())
+        .filter(|id| !by_accession.contains_key(*id))
+        .collect();
+    if !missing.is_empty() {
+        warn!(
+            "{} accessions not returned under their requested ID: {}",
+            missing.len(),
+            missing.join(", ")
+        );
+    }
 
     Ok(accessions
         .iter()
