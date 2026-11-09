@@ -7,7 +7,7 @@ use crate::variant::Variant;
 use crate::util::{with_retries, RateLimiter, RetryConfig};
 use anyhow::{anyhow, Context, Result};
 use futures::stream::{self, StreamExt};
-use tracing::info;
+use tracing::{info, warn};
 
 const MAX_CONCURRENT_EBI_REQUESTS: usize = 10;
 use std::collections::HashMap;
@@ -108,7 +108,7 @@ async fn fetch_variation_single(
 
             if !response.status().is_success() {
                 let status = response.status();
-                return Err(anyhow!("EBI variation request failed: URL: [{}]; HTTP {}",url, status));
+                return Err(anyhow!("EBI variation request for url {} failed: HTTP {}", url, status));
             }
 
             let body = response
@@ -205,26 +205,70 @@ pub(crate) async fn fetch_canon_variations(
 // Variant building from EBI features
 // ============================================================================
 
+fn feature_to_variant(
+    label: &str,
+    feature: &EbiFeature,
+    isoform: Option<UniProtIsoId>,
+    make_id: impl FnOnce(usize, &str) -> String,
+) -> Option<Variant> {
+    let Some(replaced) = &feature.wild_type else {
+        info!(
+            accession = label,
+            ft_id = ?feature.ft_id,
+            begin = %feature.begin,
+            mutated = ?feature.mutated_type,
+            "skipping EBI variant: no wild-type residue given"
+        );
+        return None;
+    };
+
+    let Ok(begin) = feature.begin.parse::<usize>() else {
+        warn!(
+            accession = label,
+            ft_id = ?feature.ft_id,
+            begin = %feature.begin,
+            wild_type = %replaced,
+            "skipping EBI variant: begin is not a valid position"
+        );
+        return None;
+    };
+
+    let Some(len_minus_one) = replaced.len().checked_sub(1) else {
+        warn!(
+            accession = label,
+            ft_id = ?feature.ft_id,
+            begin,
+            "skipping EBI variant: wild-type sequence is empty"
+        );
+        return None;
+    };
+
+    Some(Variant {
+        isoform,
+        id: make_id(begin, replaced),
+        begin,
+        end: begin + len_minus_one,
+        aa_ref: Some(replaced.clone()),
+        aa_new: feature.mutated_type.clone(),
+    })
+}
+
 pub(crate) fn feature_to_iso_variant(accession: &UniProtIsoId, feature: &EbiFeature) -> Option<Variant> {
-    if let Some(replaced) = &feature.wild_type {
-        let begin: usize = feature.begin.parse().ok()?;
-        let end = begin + replaced.len().checked_sub(1)?;
-        let id = format!("EBI{}_{}_{}",feature.ft_id.clone().unwrap_or("".to_string()),begin, replaced );
-        let isoform = Some(accession.clone());
-        return Some(Variant {isoform, id, begin, end, aa_ref: Some(replaced.to_string()), aa_new: feature.mutated_type.clone() })
-    }
-    info!("{},Variant at [{}] replaces ambigues sequence", accession.as_str(), feature.begin);
-    None
+    feature_to_variant(
+        accession.as_str(),
+        feature,
+        Some(accession.clone()),
+        |begin, replaced| {
+            format!("EBI{}_{}_{}", feature.ft_id.as_deref().unwrap_or(""), begin, replaced)
+        },
+    )
 }
 
 pub(crate) fn feature_to_canon_variant(accession: &str, feature: &EbiFeature) -> Option<Variant> {
-    if let Some(replaced) = &feature.wild_type {
-        let begin: usize = feature.begin.parse().ok()?;
-        let end = begin + replaced.len().checked_sub(1)?;
-        let id = format!("EBI{}_{}_{}",feature.ft_id.clone().unwrap_or("".to_string()),begin, replaced );
-        let isoform = None;
-        return Some(Variant {isoform, id, begin, end, aa_ref: Some(replaced.to_string()), aa_new: feature.mutated_type.clone() })
-    }
-    info!("{},Variant at [{}] replaces ambigues sequence", accession, feature.begin);
-    None
+    feature_to_variant(
+        accession,
+        feature,
+        None,
+        |begin, replaced| format!("EBI:{}:{}", begin, replaced),
+    )
 }
