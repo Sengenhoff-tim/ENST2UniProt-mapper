@@ -42,6 +42,9 @@ pub(crate) fn parse_uniprot_xml<B: BufRead>(
     let mut buf = Vec::new();
     let mut entries = UniProtEntries::default();
     let mut seen = 0usize;
+    // Whether `</uniprot>` was reached. A document cut off between two
+    // entries is otherwise well-formed XML, just silently incomplete.
+    let mut root_closed = false;
 
     loop {
         buf.clear();
@@ -76,9 +79,17 @@ pub(crate) fn parse_uniprot_xml<B: BufRead>(
                     }
                 }
             }
+            Event::End(e) if e.local_name().as_ref() == b"uniprot" => root_closed = true,
             Event::Eof => break,
             _ => {}
         }
+    }
+    if !root_closed {
+        bail!(
+            "UniProt XML in {} ends before </uniprot> after {} entries: the document is truncated",
+            source,
+            seen
+        );
     }
 
     info!(
@@ -538,6 +549,14 @@ mod tests {
     fn malformed_xml_is_an_error() {
         let xml = "<uniprot><entry><accession>P1</accession><sequence>AC</entry></uniprot>";
         assert!(parse_uniprot_xml(xml.as_bytes(), &HashSet::new(), "test").is_err());
+    }
+
+    #[test]
+    fn document_cut_between_entries_is_an_error() {
+        let complete = uniprot_xml(&[minimal_entry_xml("P1", ""), minimal_entry_xml("P2", "")]);
+        let cut = &complete[..complete.find("</entry>").unwrap() + "</entry>".len()];
+        let err = parse_uniprot_xml(cut.as_bytes(), &HashSet::new(), "test").err().unwrap();
+        assert!(err.to_string().contains("truncated"), "{err}");
     }
 
     #[test]
