@@ -52,7 +52,7 @@ pub(super) async fn handle_unmapped_transcripts(
             "{} transcripts not in the Ensembl FASTA, querying the Ensembl API",
             missing.len()
         );
-        sequences.extend(fetch_ensembl_sequences(&missing, retry_config).await?);
+        sequences.extend(fetch_ensembl_sequences(&missing, retry_config).await);
     }
 
     // Split into resolved (input order) and unresolved transcripts.

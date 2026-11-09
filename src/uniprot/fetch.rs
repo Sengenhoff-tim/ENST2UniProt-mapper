@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use anyhow::{Context, Result, anyhow};
 use futures::stream::{self, StreamExt};
-use tracing::info;
+use tracing::{info, warn};
 
 use crate::types::UniProtCanonId;
 use crate::util::{RateLimiter, RetryConfig, with_retries};
@@ -62,15 +62,16 @@ async fn fetch_uniprot_batch(
 
 /// Fetches UniProt entries for `accessions` from the REST API (XML format),
 /// concurrently, while enforcing a single global `UNIPROT_REQUESTS_PER_SECOND`
-/// cap shared by every in-flight batch. A batch that still fails after
-/// retries is treated as fatal to avoid silently missing entries.
+/// cap shared by every in-flight batch.
 ///
 /// Accessions that UniProt does not return (inactive, merged, or only known
-/// as a secondary accession) are simply absent from the result.
+/// as a secondary accession) are absent from the result. So are those of a
+/// batch that still fails after retries: the failure is logged and the run
+/// continues; the caller reports every missing accession.
 pub(crate) async fn fetch_uniprot_entries(
     accessions: &[UniProtCanonId],
     retry_config: &RetryConfig,
-) -> Result<HashMap<UniProtCanonId, UniProtEntry>> {
+) -> HashMap<UniProtCanonId, UniProtEntry> {
     let id_strings: Vec<String> = accessions
         .iter()
         .map(|id| id.as_str().to_string())
@@ -94,16 +95,25 @@ pub(crate) async fn fetch_uniprot_entries(
             let client = client.clone();
             async move {
                 rate_limiter.throttle().await;
-                fetch_uniprot_batch(&chunk, &retry_config, &client).await
+                let result = fetch_uniprot_batch(&chunk, &retry_config, &client).await;
+                (chunk.len(), result)
             }
         })
         .buffer_unordered(MAX_CONCURRENT_UNIPROT_REQUESTS);
 
-    while let Some(result) = results.next().await {
-        entries.extend(result?);
+    while let Some((batch_size, result)) = results.next().await {
         done += 1;
-        info!("Fetched UniProt batch {}/{}", done, total);
+        match result {
+            Ok(batch) => {
+                entries.extend(batch);
+                info!("Fetched UniProt batch {}/{}", done, total);
+            }
+            Err(e) => warn!(
+                "UniProt batch {}/{} failed, its {} accessions stay missing: {:#}",
+                done, total, batch_size, e
+            ),
+        }
     }
 
-    Ok(entries)
+    entries
 }

@@ -74,16 +74,33 @@ pub(super) fn strip_stop_codon(enst: &str, seq: String) -> String {
     }
 }
 
+/// Fetches protein sequences for `enst_ids` from the Ensembl REST API, in
+/// batches. Transcripts Ensembl does not return are absent from the result,
+/// as are those of a batch that still fails after retries: the failure is
+/// logged and the run continues; the caller reports every missing transcript.
 pub(crate) async fn fetch_ensembl_sequences(
     enst_ids: &[EnsemblId],
     retry_config: &RetryConfig,
-) -> Result<Vec<(EnsemblId, Sequence)>> {
+) -> Vec<(EnsemblId, Sequence)> {
     let id_strings: Vec<String> = enst_ids.iter().map(|id| id.as_str().to_string()).collect();
     let mut sequences: HashMap<String, Sequence> = HashMap::new();
     let client = reqwest::Client::new();
 
-    for chunk in id_strings.chunks(MAX_ENSEMBL_BATCH_SIZE) {
-        let responses = fetch_ensembl_sequence_batch(chunk, retry_config, &client).await?;
+    let total = id_strings.len().div_ceil(MAX_ENSEMBL_BATCH_SIZE);
+    for (i, chunk) in id_strings.chunks(MAX_ENSEMBL_BATCH_SIZE).enumerate() {
+        let responses = match fetch_ensembl_sequence_batch(chunk, retry_config, &client).await {
+            Ok(responses) => responses,
+            Err(e) => {
+                tracing::warn!(
+                    "Ensembl batch {}/{} failed, its {} transcripts stay missing: {:#}",
+                    i + 1,
+                    total,
+                    chunk.len(),
+                    e
+                );
+                continue;
+            }
+        };
         for record in responses {
             if record.molecule != "protein" {
                 tracing::info!(
@@ -98,10 +115,10 @@ pub(crate) async fn fetch_ensembl_sequences(
         }
     }
 
-    Ok(enst_ids
+    enst_ids
         .iter()
         .filter_map(|id| sequences.remove(id.as_str()).map(|seq| (id.clone(), seq)))
-        .collect())
+        .collect()
 }
 
 #[cfg(test)]

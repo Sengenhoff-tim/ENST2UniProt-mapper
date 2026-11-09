@@ -87,7 +87,7 @@ pub(crate) async fn run(opts: RunOptions) -> Result<()> {
             "{} required accessions not in the UniProt XML, querying the UniProt API",
             missing.len()
         );
-        let fetched = fetch_uniprot_entries(&missing, retry_config).await?;
+        let fetched = fetch_uniprot_entries(&missing, retry_config).await;
         uniprot_entries.add_fetched(missing, fetched)
     } else {
         missing
