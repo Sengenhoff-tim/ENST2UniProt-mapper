@@ -477,9 +477,13 @@ pub(crate) fn get_ensembl_mapping(
     let mut result = Vec::new();
     for cross_ref in cross_references {
         if cross_ref.database == "Ensembl" {
-            let id: EnsemblId = strip_version(&cross_ref.id).parse().unwrap();
+            let id: EnsemblId = strip_version(&cross_ref.id)
+                .parse()
+                .map_err(|e| anyhow!("{}: invalid Ensembl id '{}': {:?}", primary_accession, cross_ref.id, e))?;
             let uniprot_id: UniProtId = match &cross_ref.isoform_id {
-                Some(iso_id) => iso_id.parse().unwrap(),
+                Some(iso_id) => iso_id
+                    .parse()
+                    .map_err(|e| anyhow!("{}: invalid isoform id '{}': {:?}", primary_accession, iso_id, e))?,
                 None => UniProtId::Id(UniProtCanonId(primary_accession.to_string())),
             };
             result.push((uniprot_id, id));
