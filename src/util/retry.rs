@@ -1,15 +1,7 @@
-// ============================================================================
-// Utility: retry/backoff helper and a global async rate limiter
-// ============================================================================
-
-use anyhow::{Context, Result};
 use std::future::Future;
 use std::time::Duration;
-use tokio::sync::Mutex;
 
-pub(crate) fn strip_version(enst: &str) -> &str {
-    enst.split('.').next().unwrap_or(enst)
-}
+use anyhow::{Context, Result};
 
 /// Default per-request timeout (connect + write + read) applied to every
 /// outgoing REST call, overridable via `--timeout-secs`.
@@ -75,46 +67,53 @@ where
     }
 }
 
-/// Global, shareable async rate limiter: enforces at most `max_per_second`
-/// admissions per second, *in total*, across every caller that holds a
-/// clone of it. Cloning is cheap (bumps an `Arc` refcount) — construct one
-/// `RateLimiter` per API and clone it into every concurrently-spawned task
-/// that calls that API, so the limit is enforced globally rather than
-/// per-task.
-#[derive(Clone)]
-pub(crate) struct RateLimiter {
-    inner: std::sync::Arc<Mutex<RateLimiterState>>,
-}
+#[cfg(test)]
+mod tests {
+    use std::cell::Cell;
 
-struct RateLimiterState {
-    min_interval: Duration,
-    next_allowed: tokio::time::Instant,
-}
+    use anyhow::anyhow;
 
-impl RateLimiter {
-    pub(crate) fn per_second(max_per_second: u32) -> Self {
-        RateLimiter {
-            inner: std::sync::Arc::new(Mutex::new(RateLimiterState {
-                min_interval: Duration::from_secs_f64(1.0 / max_per_second as f64),
-                next_allowed: tokio::time::Instant::now(),
-            })),
-        }
+    use super::*;
+
+    fn config(max_attempts: u32) -> RetryConfig {
+        RetryConfig { max_attempts, backoff_base_ms: 0, ..RetryConfig::default() }
     }
 
-    /// Reserves the next available slot and waits for it. The reservation
-    /// (bumping `next_allowed`) happens while the lock is held, so
-    /// concurrently-waiting callers are queued strictly in order and each
-    /// gets a slot exactly `min_interval` after the previous one — no two
-    /// callers can slip through the same window even under a burst of
-    /// simultaneous calls.
-    pub(crate) async fn throttle(&self) {
-        let wait_until = {
-            let mut state = self.inner.lock().await;
-            let now = tokio::time::Instant::now();
-            let scheduled = state.next_allowed.max(now);
-            state.next_allowed = scheduled + state.min_interval;
-            scheduled
-        };
-        tokio::time::sleep_until(wait_until).await;
+    #[tokio::test]
+    async fn returns_first_success_without_retrying() {
+        let calls = Cell::new(0);
+        let result = with_retries("op", &config(3), || {
+            calls.set(calls.get() + 1);
+            async { Ok::<_, anyhow::Error>(42) }
+        })
+        .await;
+        assert_eq!(result.unwrap(), 42);
+        assert_eq!(calls.get(), 1);
+    }
+
+    #[tokio::test]
+    async fn retries_until_success() {
+        let calls = Cell::new(0);
+        let result = with_retries("op", &config(3), || {
+            calls.set(calls.get() + 1);
+            let attempt = calls.get();
+            async move { if attempt < 3 { Err(anyhow!("flaky")) } else { Ok(attempt) } }
+        })
+        .await;
+        assert_eq!(result.unwrap(), 3);
+    }
+
+    #[tokio::test]
+    async fn gives_up_after_max_attempts() {
+        let calls = Cell::new(0);
+        let result: Result<()> = with_retries("fetching things", &config(2), || {
+            calls.set(calls.get() + 1);
+            async { Err(anyhow!("down")) }
+        })
+        .await;
+        assert_eq!(calls.get(), 2);
+        let err = format!("{:#}", result.unwrap_err());
+        assert!(err.contains("fetching things failed after 2 attempts"), "{err}");
+        assert!(err.contains("down"), "{err}");
     }
 }

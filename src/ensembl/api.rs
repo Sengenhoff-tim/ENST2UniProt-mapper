@@ -1,6 +1,3 @@
-// ============================================================================
-// Ensembl sequence API model and fetch
-// ============================================================================
 
 use crate::types::{EnsemblId, Sequence};
 use crate::util::{with_retries, RetryConfig};
@@ -59,7 +56,7 @@ async fn fetch_ensembl_sequence_batch(
 
 /// Ensembl occasionally returns a translated protein sequence with containing '*' stop-codon marker (e.g. for select readthrough transcripts). 
 /// Sequence is assumed to stop at the first stop codon
-fn strip_stop_codon(enst: &str, seq: String) -> String {
+pub(super) fn strip_stop_codon(enst: &str, seq: String) -> String {
     match seq.find('*') {
         Some(pos) => {
             tracing::info!(
@@ -97,7 +94,7 @@ pub(crate) async fn fetch_ensembl_sequences(
                 continue;
             }
             let seq = strip_stop_codon(&record.query, record.seq);
-            sequences.insert(record.query, Sequence(seq));
+            sequences.insert(record.query, Sequence::new(seq));
         }
     }
 
@@ -109,4 +106,15 @@ pub(crate) async fn fetch_ensembl_sequences(
                 .map(|seq| (id.clone(), seq))
         })
         .collect())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn strip_stop_codon_truncates_at_the_first_marker() {
+        assert_eq!(strip_stop_codon("ENST1", "MAC*DE*".to_string()), "MAC");
+        assert_eq!(strip_stop_codon("ENST1", "MACDE".to_string()), "MACDE");
+    }
 }

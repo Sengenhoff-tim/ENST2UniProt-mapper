@@ -1,0 +1,109 @@
+use std::collections::{HashMap, HashSet};
+
+use anyhow::{anyhow, Context, Result};
+use futures::stream::{self, StreamExt};
+use tracing::info;
+
+use crate::types::UniProtCanonId;
+use crate::util::{with_retries, RateLimiter, RetryConfig};
+
+use super::{
+    batch::{batch_accessions, build_uniprot_stream_url},
+    entries::UniProtEntries,
+    model::UniProtEntry,
+    xml::parse_uniprot_xml,
+};
+
+/// Caps the number of UniProt batch requests in flight at once. Admission
+/// is already paced by `RateLimiter`, but that only limits how fast new
+/// requests are *started* — without this cap, every admitted request stays
+/// open concurrently until it completes, which under load can pile up
+/// enough simultaneous connections to make individual requests time out.
+const MAX_CONCURRENT_UNIPROT_REQUESTS: usize = 8;
+
+const UNIPROT_REQUESTS_PER_SECOND: u32 = 50;
+
+async fn fetch_uniprot_batch(
+    accessions: &[String],
+    retry_config: &RetryConfig,
+    client: &reqwest::Client,
+) -> Result<Vec<(UniProtCanonId, UniProtEntry)>> {
+    with_retries(
+        &format!("fetching {} UniProt entries", accessions.len()),
+        retry_config,
+        || async {
+            let url = build_uniprot_stream_url(accessions);
+            let response = client
+                .get(&url)
+                .timeout(retry_config.timeout)
+                .send()
+                .await
+                .with_context(|| {
+                    format!("UniProt request failed for {} accessions", accessions.len())
+                })?;
+
+            if !response.status().is_success() {
+                let status = response.status();
+                let body = response.text().await.unwrap_or_default();
+                return Err(anyhow!("UniProt request failed: HTTP {}: {}", status, body));
+            }
+
+            let body = response
+                .bytes()
+                .await
+                .context("failed to read UniProt response body")?;
+
+            parse_uniprot_xml(body.as_ref(), &HashSet::new(), "UniProt REST response")
+                .map(UniProtEntries::into_vec)
+        },
+    )
+    .await
+}
+
+/// Fetches UniProt entries for `accessions` from the REST API (XML format),
+/// concurrently, while enforcing a single global `UNIPROT_REQUESTS_PER_SECOND`
+/// cap shared by every in-flight batch. A batch that still fails after
+/// retries is treated as fatal to avoid silently missing entries.
+///
+/// Accessions that UniProt does not return (inactive, merged, or only known
+/// as a secondary accession) are simply absent from the result.
+pub(crate) async fn fetch_uniprot_entries(
+    accessions: &[UniProtCanonId],
+    retry_config: &RetryConfig,
+) -> Result<HashMap<UniProtCanonId, UniProtEntry>> {
+    let id_strings: Vec<String> = accessions
+        .iter()
+        .map(|id| id.as_str().to_string())
+        .collect();
+
+    let batches = batch_accessions(&id_strings);
+    let total = batches.len();
+
+    // One RateLimiter, cloned into every task below, so the per-second cap
+    // is enforced globally across all concurrent requests to this API.
+    let rate_limiter = RateLimiter::per_second(UNIPROT_REQUESTS_PER_SECOND);
+    let client = reqwest::Client::new();
+
+    let mut entries = HashMap::new();
+    let mut done = 0usize;
+
+    let mut results = stream::iter(batches)
+        .map(|chunk| {
+            let rate_limiter = rate_limiter.clone();
+            let retry_config = *retry_config;
+            let client = client.clone();
+            async move {
+                rate_limiter.throttle().await;
+                fetch_uniprot_batch(&chunk, &retry_config, &client).await
+            }
+        })
+        .buffer_unordered(MAX_CONCURRENT_UNIPROT_REQUESTS);
+
+    while let Some(result) = results.next().await {
+        entries.extend(result?);
+        done += 1;
+        info!("Fetched UniProt batch {}/{}", done, total);
+    }
+
+    Ok(entries)
+}

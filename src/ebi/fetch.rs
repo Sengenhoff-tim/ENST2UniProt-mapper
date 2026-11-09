@@ -1,70 +1,17 @@
-// ============================================================================
-// EBI Proteins API — variation model, fetch, and conversion to Variant
-// ============================================================================
-
-use crate::types::{UniProtCanonId, UniProtIsoId};
-use crate::variant::Variant;
-use crate::util::{with_retries, RateLimiter, RetryConfig};
-use anyhow::{anyhow, Context, Result};
-use futures::stream::{self, StreamExt};
-use tracing::{info, warn};
-
-const MAX_CONCURRENT_EBI_REQUESTS: usize = 10;
 use std::collections::HashMap;
 
-// Only fields read elsewhere in this module are kept
-#[derive(Debug, Clone, serde::Deserialize)]
-pub(crate) struct ProteinFeatureInfo {
-    pub(crate) features: Vec<EbiFeature>,
-}
+use anyhow::{anyhow, Context, Result};
+use futures::stream::{self, StreamExt};
+use tracing::info;
 
-#[derive(Debug, Clone, serde::Deserialize)]
-pub(crate) struct EbiFeature {
-    #[serde(rename = "ftId")]
-    ft_id: Option<String>,
-    begin: String,
-    #[serde(rename = "wildType")]
-    wild_type: Option<String>,
-    #[serde(rename = "mutatedType")]
-    mutated_type: Option<String>,
-}
+use crate::types::{UniProtCanonId, UniProtIsoId};
+use crate::util::{with_retries, RateLimiter, RetryConfig};
+
+use super::{source_type::validate_source_types, types::ProteinFeatureInfo};
 
 pub(crate) const EBI_MAX_REQUESTS_PER_SECOND: u32 = 200;
 
-const ALLOWED_SOURCE_TYPES: [&str; 10] = [
-    "uniprot",
-    "large scale study",
-    "mixed",
-    "clinvar",
-    "nci-tcga",
-    "cosmic curated",
-    "ensembl",
-    "gnomad",
-    "topmed",
-    "exac",
-];
-
-fn validate_source_types(source_types: &[&str]) -> Result<()> {
-    if source_types.len() > 2 {
-        return Err(anyhow!(
-            "at most 2 sourcetype values accepted, got {}",
-            source_types.len()
-        ));
-    }
-    for st in source_types {
-        if !ALLOWED_SOURCE_TYPES
-            .iter()
-            .any(|a| a.eq_ignore_ascii_case(st))
-        {
-            return Err(anyhow!(
-                "invalid sourcetype '{}', must be one of {:?}",
-                st,
-                ALLOWED_SOURCE_TYPES
-            ));
-        }
-    }
-    Ok(())
-}
+const MAX_CONCURRENT_EBI_REQUESTS: usize = 10;
 
 /// Builds the URL for a single accession using EBI's singular path-style
 /// endpoint (`/variation/{accession}`), rather than the query-param batch
@@ -99,7 +46,7 @@ async fn fetch_variation_single(
                 .await
                 .with_context(|| format!("EBI variation request to {} failed", url))?;
 
-            /* 
+            /*
             if response.status() == reqwest::StatusCode::NOT_FOUND {
                 // No variation data for this accession - not an error.
                 return Ok(None);
@@ -138,7 +85,8 @@ where
 
     let source_types_owned: Vec<String> = source_types.iter().map(|s| s.to_string()).collect();
 
-    tracing::info!(
+    // List-level progress has no single feature, so it stays a plain event.
+    info!(
         accession_count = keys.len(),
         "Starting per-accession EBI variation fetch"
     );
@@ -155,7 +103,7 @@ where
                 rate_limiter.throttle().await;
                 let source_type_refs: Vec<&str> = source_types_owned.iter().map(String::as_str).collect();
 
-                tracing::info!(accession = %accession, source_types = ?source_type_refs, "Fetching variation");
+                info!(accession = %accession, source_types = ?source_type_refs, "Fetching variation");
 
                 let info = fetch_variation_single(&accession, &source_type_refs, &retry_config, &client).await?;
 
@@ -171,14 +119,13 @@ where
         }
     }
 
-    tracing::info!(
+    info!(
         total_results = result.len(),
         "Per-accession EBI variation fetch completed"
     );
 
     Ok(result)
 }
-
 
 pub(crate) async fn fetch_iso_variations(
     uniprot_ids: &[UniProtIsoId],
@@ -198,77 +145,4 @@ pub(crate) async fn fetch_canon_variations(
     client: &reqwest::Client,
 ) -> Result<HashMap<UniProtCanonId, ProteinFeatureInfo>> {
     fetch_variations_generic(uniprot_ids, |id| id.as_str().to_string(), source_types, retry_config, rate_limiter, client).await
-}
-
-
-// ============================================================================
-// Variant building from EBI features
-// ============================================================================
-
-fn feature_to_variant(
-    label: &str,
-    feature: &EbiFeature,
-    isoform: Option<UniProtIsoId>,
-    make_id: impl FnOnce(usize, &str) -> String,
-) -> Option<Variant> {
-    let Some(replaced) = &feature.wild_type else {
-        info!(
-            accession = label,
-            ft_id = ?feature.ft_id,
-            begin = %feature.begin,
-            mutated = ?feature.mutated_type,
-            "skipping EBI variant: no wild-type residue given"
-        );
-        return None;
-    };
-
-    let Ok(begin) = feature.begin.parse::<usize>() else {
-        warn!(
-            accession = label,
-            ft_id = ?feature.ft_id,
-            begin = %feature.begin,
-            wild_type = %replaced,
-            "skipping EBI variant: begin is not a valid position"
-        );
-        return None;
-    };
-
-    let Some(len_minus_one) = replaced.len().checked_sub(1) else {
-        warn!(
-            accession = label,
-            ft_id = ?feature.ft_id,
-            begin,
-            "skipping EBI variant: wild-type sequence is empty"
-        );
-        return None;
-    };
-
-    Some(Variant {
-        isoform,
-        id: make_id(begin, replaced),
-        begin,
-        end: begin + len_minus_one,
-        aa_ref: Some(replaced.clone()),
-        aa_new: feature.mutated_type.clone(),
-    })
-}
-
-pub(crate) fn feature_to_iso_variant(accession: &UniProtIsoId, feature: &EbiFeature) -> Option<Variant> {
-    feature_to_variant(
-        accession.as_str(),
-        feature,
-        Some(accession.clone()),
-        |begin, replaced| {
-            format!("EBI{}_{}_{}", feature.ft_id.as_deref().unwrap_or(""), begin, replaced)
-        },
-    )
-}
-
-pub(crate) fn feature_to_canon_variant(accession: &str, feature: &EbiFeature) -> Option<Variant> {
-    feature_to_variant(
-        accession,
-        feature,
-        None,
-        |begin, replaced| format!("EBI:{}:{}", begin, replaced),
-    )
 }
