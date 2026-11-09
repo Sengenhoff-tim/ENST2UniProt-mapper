@@ -81,7 +81,11 @@ pub(crate) fn log_unresolved_accessions(unresolved: &[UniProtCanonId], api_fallb
         } else {
             " in the UniProt XML (API fallback disabled)"
         },
-        unresolved.iter().map(UniProtCanonId::as_str).collect::<Vec<_>>().join(", ")
+        unresolved
+            .iter()
+            .map(UniProtCanonId::as_str)
+            .collect::<Vec<_>>()
+            .join(", ")
     );
 }
 
@@ -94,11 +98,18 @@ mod tests {
     }
 
     fn entry(accession: &str) -> UniProtEntry {
-        UniProtEntry { accessions: vec![accession.to_string()], ..UniProtEntry::default() }
+        UniProtEntry {
+            accessions: vec![accession.to_string()],
+            ..UniProtEntry::default()
+        }
     }
 
     fn accessions(entries: UniProtEntries) -> Vec<String> {
-        entries.into_vec().into_iter().map(|(id, _)| id.to_string()).collect()
+        entries
+            .into_vec()
+            .into_iter()
+            .map(|(id, _)| id.to_string())
+            .collect()
     }
 
     #[test]

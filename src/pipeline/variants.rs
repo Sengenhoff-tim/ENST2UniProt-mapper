@@ -1,6 +1,6 @@
 use crate::variant::Variant;
 
-use super::log::{log_pipeline_rejection, Stage};
+use super::log::{Stage, log_pipeline_rejection};
 
 /// Attempts to resolve a premature-stop / out-of-bounds condition for `var`
 /// against `seq`. On success, pushes `var` into `collection`; on failure,
@@ -55,7 +55,10 @@ mod tests {
     #[test]
     fn retain_valid_drops_invalid_residues() {
         let kept = retain_valid(
-            vec![variant("ok", 1, 1, Some("A"), Some("C")), variant("bad", 1, 1, Some("A"), Some("?"))],
+            vec![
+                variant("ok", 1, 1, Some("A"), Some("C")),
+                variant("bad", 1, 1, Some("A"), Some("?")),
+            ],
             "P1",
         );
         let ids: Vec<&str> = kept.iter().map(|v| v.id.as_str()).collect();

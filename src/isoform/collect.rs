@@ -4,7 +4,7 @@ use crate::types::{Sequence, UniProtIsoId};
 use crate::uniprot::{IsoformSequenceType, UniProtEntry};
 use crate::variant::Variant;
 
-use super::log::{log_entry_rejection, Stage};
+use super::log::{Stage, log_entry_rejection};
 
 /// Isoform information and natural variants of one UniProt entry.
 pub(crate) struct EntryIsoforms {
@@ -33,7 +33,11 @@ pub(crate) fn collect_and_reconstruct_isoforms(entry: &UniProtEntry) -> EntryIso
     let mut isoforms = HashMap::new();
 
     let Some(alt_products) = &entry.alternative_products else {
-        return EntryIsoforms { displayed_id, sequences: isoforms, natural_variants };
+        return EntryIsoforms {
+            displayed_id,
+            sequences: isoforms,
+            natural_variants,
+        };
     };
 
     for iso in &alt_products.isoforms {
@@ -62,7 +66,11 @@ pub(crate) fn collect_and_reconstruct_isoforms(entry: &UniProtEntry) -> EntryIso
         }
     }
 
-    EntryIsoforms { displayed_id, sequences: isoforms, natural_variants }
+    EntryIsoforms {
+        displayed_id,
+        sequences: isoforms,
+        natural_variants,
+    }
 }
 
 #[cfg(test)]
@@ -72,13 +80,19 @@ mod tests {
 
     #[test]
     fn collects_displayed_alias_isoforms_and_natural_variants() {
-        let EntryIsoforms { displayed_id, sequences, natural_variants } =
-            collect_and_reconstruct_isoforms(&rich_entry());
+        let EntryIsoforms {
+            displayed_id,
+            sequences,
+            natural_variants,
+        } = collect_and_reconstruct_isoforms(&rich_entry());
 
         assert_eq!(displayed_id, Some(UniProtIsoId::new("P99999-1")));
         // -1 is the canonical alias and -3 is not described: only -2 remains.
         assert_eq!(sequences.len(), 1);
-        assert_eq!(sequences[&UniProtIsoId::new("P99999-2")].as_str(), "AWEFGHIKLMNPQRST");
+        assert_eq!(
+            sequences[&UniProtIsoId::new("P99999-2")].as_str(),
+            "AWEFGHIKLMNPQRST"
+        );
 
         let ids: Vec<&str> = natural_variants.iter().map(|v| v.id.as_str()).collect();
         assert_eq!(ids, ["VAR_000001", "VAR_000002"]);

@@ -7,7 +7,7 @@ mod fetch;
 mod model;
 mod xml;
 
-pub(crate) use entries::{log_unresolved_accessions, UniProtEntries};
+pub(crate) use entries::{UniProtEntries, log_unresolved_accessions};
 pub(crate) use fetch::fetch_uniprot_entries;
 pub(crate) use model::{
     AlternativeProducts, EvidenceSource, Feature, Isoform, IsoformSequenceType, UniProtEntry,

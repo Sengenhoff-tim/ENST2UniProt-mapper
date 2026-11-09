@@ -2,8 +2,8 @@ use anyhow::{bail, ensure};
 use tracing::trace;
 
 use super::{
-    log::{log_variant_event, Stage},
     Variant,
+    log::{Stage, log_variant_event},
 };
 
 /// What `resolve_stop` should do. Computed from shared borrows, then applied.
@@ -259,22 +259,48 @@ mod tests {
 
     #[test]
     fn resolved_reference_always_spans_begin_to_end() {
-        for (aa_ref, aa_new) in [("A", "*"), ("A", "BB*"), ("*", "BB*"), ("B*", "X"), ("BC", "X*Y")] {
+        for (aa_ref, aa_new) in [
+            ("A", "*"),
+            ("A", "BB*"),
+            ("*", "BB*"),
+            ("B*", "X"),
+            ("BC", "X*Y"),
+        ] {
             let v = resolved(variant("v", 2, 2, Some(aa_ref), Some(aa_new)));
             let span = v.end - v.begin + 1;
-            assert_eq!(v.aa_ref.as_deref().map(str::len), Some(span), "{aa_ref}>{aa_new}: {v}");
+            assert_eq!(
+                v.aa_ref.as_deref().map(str::len),
+                Some(span),
+                "{aa_ref}>{aa_new}: {v}"
+            );
         }
     }
 
     #[test]
     fn rejects_new_residues_without_reference() {
-        assert!(variant("v", 2, 2, None, Some("X")).resolve_stop(SEQ).is_err());
+        assert!(
+            variant("v", 2, 2, None, Some("X"))
+                .resolve_stop(SEQ)
+                .is_err()
+        );
     }
 
     #[test]
     fn rejects_positions_outside_the_sequence() {
-        assert!(variant("v", 0, 0, Some("A"), Some("X")).resolve_stop(SEQ).is_err());
-        assert!(variant("v", 6, 6, Some("A"), Some("X")).resolve_stop(SEQ).is_err());
-        assert!(variant("v", 1, 1, Some("A"), Some("X")).resolve_stop("").is_err());
+        assert!(
+            variant("v", 0, 0, Some("A"), Some("X"))
+                .resolve_stop(SEQ)
+                .is_err()
+        );
+        assert!(
+            variant("v", 6, 6, Some("A"), Some("X"))
+                .resolve_stop(SEQ)
+                .is_err()
+        );
+        assert!(
+            variant("v", 1, 1, Some("A"), Some("X"))
+                .resolve_stop("")
+                .is_err()
+        );
     }
 }

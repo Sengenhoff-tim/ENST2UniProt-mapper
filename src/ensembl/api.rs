@@ -1,7 +1,6 @@
-
 use crate::types::{EnsemblId, Sequence};
-use crate::util::{with_retries, RetryConfig};
-use anyhow::{anyhow, Context, Result};
+use crate::util::{RetryConfig, with_retries};
+use anyhow::{Context, Result, anyhow};
 use std::collections::HashMap;
 
 const MAX_ENSEMBL_BATCH_SIZE: usize = 50;
@@ -41,7 +40,11 @@ async fn fetch_ensembl_sequence_batch(
 
             if !response.status().is_success() {
                 let status = response.status();
-                return Err(anyhow!("{},Ensembl sequence request failed: HTTP {}", ids.join("|"), status));
+                return Err(anyhow!(
+                    "{},Ensembl sequence request failed: HTTP {}",
+                    ids.join("|"),
+                    status
+                ));
             }
 
             let responses: Vec<EnsemblSequenceResponse> = response
@@ -54,7 +57,7 @@ async fn fetch_ensembl_sequence_batch(
     .await
 }
 
-/// Ensembl occasionally returns a translated protein sequence with containing '*' stop-codon marker (e.g. for select readthrough transcripts). 
+/// Ensembl occasionally returns a translated protein sequence with containing '*' stop-codon marker (e.g. for select readthrough transcripts).
 /// Sequence is assumed to stop at the first stop codon
 pub(super) fn strip_stop_codon(enst: &str, seq: String) -> String {
     match seq.find('*') {
@@ -75,10 +78,7 @@ pub(crate) async fn fetch_ensembl_sequences(
     enst_ids: &[EnsemblId],
     retry_config: &RetryConfig,
 ) -> Result<Vec<(EnsemblId, Sequence)>> {
-    let id_strings: Vec<String> = enst_ids
-        .iter()
-        .map(|id| id.as_str().to_string())
-        .collect();
+    let id_strings: Vec<String> = enst_ids.iter().map(|id| id.as_str().to_string()).collect();
     let mut sequences: HashMap<String, Sequence> = HashMap::new();
     let client = reqwest::Client::new();
 
@@ -100,11 +100,7 @@ pub(crate) async fn fetch_ensembl_sequences(
 
     Ok(enst_ids
         .iter()
-        .filter_map(|id| {
-            sequences
-                .remove(id.as_str())
-                .map(|seq| (id.clone(), seq))
-        })
+        .filter_map(|id| sequences.remove(id.as_str()).map(|seq| (id.clone(), seq)))
         .collect())
 }
 

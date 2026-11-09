@@ -59,9 +59,8 @@ where
                 tokio::time::sleep(Duration::from_millis(backoff_ms)).await;
             }
             Err(err) => {
-                return Err(err).with_context(|| {
-                    format!("{} failed after {} attempts", description, attempt)
-                });
+                return Err(err)
+                    .with_context(|| format!("{} failed after {} attempts", description, attempt));
             }
         }
     }
@@ -76,7 +75,11 @@ mod tests {
     use super::*;
 
     fn config(max_attempts: u32) -> RetryConfig {
-        RetryConfig { max_attempts, backoff_base_ms: 0, ..RetryConfig::default() }
+        RetryConfig {
+            max_attempts,
+            backoff_base_ms: 0,
+            ..RetryConfig::default()
+        }
     }
 
     #[tokio::test]
@@ -97,7 +100,13 @@ mod tests {
         let result = with_retries("op", &config(3), || {
             calls.set(calls.get() + 1);
             let attempt = calls.get();
-            async move { if attempt < 3 { Err(anyhow!("flaky")) } else { Ok(attempt) } }
+            async move {
+                if attempt < 3 {
+                    Err(anyhow!("flaky"))
+                } else {
+                    Ok(attempt)
+                }
+            }
         })
         .await;
         assert_eq!(result.unwrap(), 3);
@@ -113,7 +122,10 @@ mod tests {
         .await;
         assert_eq!(calls.get(), 2);
         let err = format!("{:#}", result.unwrap_err());
-        assert!(err.contains("fetching things failed after 2 attempts"), "{err}");
+        assert!(
+            err.contains("fetching things failed after 2 attempts"),
+            "{err}"
+        );
         assert!(err.contains("down"), "{err}");
     }
 }

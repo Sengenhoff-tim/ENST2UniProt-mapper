@@ -8,4 +8,4 @@ mod natural_variant;
 mod reconstruct;
 mod var_seq;
 
-pub(crate) use collect::{collect_and_reconstruct_isoforms, EntryIsoforms};
+pub(crate) use collect::{EntryIsoforms, collect_and_reconstruct_isoforms};

@@ -5,7 +5,7 @@ use anyhow::{Context, Result};
 
 use crate::types::{EnsemblId, UniProtCanonId, UniProtId};
 
-use super::log::{log_line_rejection, Stage};
+use super::log::{Stage, log_line_rejection};
 
 /// Parses a UniProt-canonical/Ensembl transcript id mapping file, returning a
 /// map of Ensembl-ID → list of UniProt-Canon-IDs (an ENST can map to more
@@ -70,7 +70,10 @@ mod tests {
         parse_idmapping(path.to_str().unwrap()).unwrap()
     }
 
-    fn accessions_of<'a>(mapping: &'a HashMap<EnsemblId, Vec<UniProtCanonId>>, enst: &str) -> Vec<&'a str> {
+    fn accessions_of<'a>(
+        mapping: &'a HashMap<EnsemblId, Vec<UniProtCanonId>>,
+        enst: &str,
+    ) -> Vec<&'a str> {
         mapping[enst].iter().map(UniProtCanonId::as_str).collect()
     }
 

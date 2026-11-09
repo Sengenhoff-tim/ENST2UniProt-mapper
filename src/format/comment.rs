@@ -30,7 +30,11 @@ pub(super) fn alternative_products_cc(ap: &AlternativeProducts) -> String {
             if synonyms.is_empty() {
                 lines.push(format!("CC       Name={};", name));
             } else {
-                lines.push(format!("CC       Name={}; Synonyms={};", name, synonyms.join(", ")));
+                lines.push(format!(
+                    "CC       Name={}; Synonyms={};",
+                    name,
+                    synonyms.join(", ")
+                ));
             }
         }
 
@@ -41,7 +45,10 @@ pub(super) fn alternative_products_cc(ap: &AlternativeProducts) -> String {
             IsoformSequenceType::Described if !iso.vsp_ids.is_empty() => iso.vsp_ids.join(", "),
             _ => "Not described".to_string(),
         };
-        lines.push(format!("CC         IsoId={}; Sequence={};", iso_id, seq_str));
+        lines.push(format!(
+            "CC         IsoId={}; Sequence={};",
+            iso_id, seq_str
+        ));
     }
 
     lines.join("\n")
@@ -82,7 +89,11 @@ mod tests {
                 }],
                 ..AlternativeProducts::default()
             };
-            alternative_products_cc(&ap).lines().last().unwrap().to_string()
+            alternative_products_cc(&ap)
+                .lines()
+                .last()
+                .unwrap()
+                .to_string()
         };
         assert!(line(IsoformSequenceType::External, &[]).ends_with("Sequence=External;"));
         assert!(line(IsoformSequenceType::Described, &[]).ends_with("Sequence=Not described;"));

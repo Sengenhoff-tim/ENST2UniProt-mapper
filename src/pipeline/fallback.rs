@@ -12,7 +12,7 @@ use crate::util::RetryConfig;
 use crate::variant::Variant;
 
 use super::{
-    log::{log_pipeline_event, log_pipeline_rejection, Stage},
+    log::{Stage, log_pipeline_event, log_pipeline_rejection},
     variants::{retain_valid, try_add_variant},
 };
 
@@ -48,7 +48,10 @@ pub(super) async fn handle_unmapped_transcripts(
         .cloned()
         .collect();
     if ensembl_api_fallback && !missing.is_empty() {
-        info!("{} transcripts not in the Ensembl FASTA, querying the Ensembl API", missing.len());
+        info!(
+            "{} transcripts not in the Ensembl FASTA, querying the Ensembl API",
+            missing.len()
+        );
         sequences.extend(fetch_ensembl_sequences(&missing, retry_config).await?);
     }
 
@@ -63,7 +66,10 @@ pub(super) async fn handle_unmapped_transcripts(
     }
 
     for (enst_id, seq) in &enst_sequences {
-        let variants = global_sample_variants.get(enst_id).map(Vec::as_slice).unwrap_or(&[]);
+        let variants = global_sample_variants
+            .get(enst_id)
+            .map(Vec::as_slice)
+            .unwrap_or(&[]);
         let mut resolved_variants = Vec::new();
         for variant in variants {
             try_add_variant(&mut resolved_variants, variant.clone(), seq.as_str());
@@ -89,15 +95,25 @@ pub(super) async fn handle_unmapped_transcripts(
             enst.as_str(),
             &format!(
                 "no sequence found in the Ensembl FASTA{}",
-                if ensembl_api_fallback { " or API" } else { " (API fallback disabled)" }
+                if ensembl_api_fallback {
+                    " or API"
+                } else {
+                    " (API fallback disabled)"
+                }
             ),
         );
-        let variants = global_sample_variants.get(&enst).map(Vec::as_slice).unwrap_or(&[]);
+        let variants = global_sample_variants
+            .get(&enst)
+            .map(Vec::as_slice)
+            .unwrap_or(&[]);
         for var in variants {
             log_pipeline_rejection(
                 Stage::TranscriptMapping,
                 enst.as_str(),
-                &format!("variant {} could not be mapped: no UniProt entry and no Ensembl sequence", var.id),
+                &format!(
+                    "variant {} could not be mapped: no UniProt entry and no Ensembl sequence",
+                    var.id
+                ),
             );
         }
     }
@@ -112,8 +128,12 @@ fn write_entry(
     sequence: &str,
     variants: &[Variant],
 ) -> Result<()> {
-    writeln!(out, "{}", format_entry(enst_id.as_str(), sequence, variants, None))
-        .with_context(|| format!("failed to write output entry for {}", enst_id))
+    writeln!(
+        out,
+        "{}",
+        format_entry(enst_id.as_str(), sequence, variants, None)
+    )
+    .with_context(|| format!("failed to write output entry for {}", enst_id))
 }
 
 #[cfg(test)]
@@ -126,7 +146,10 @@ mod tests {
         let fasta = write_file(&dir, "pep.fa", fasta);
         let sample_variants: HashMap<EnsemblId, Vec<Variant>> = [(
             EnsemblId::new("ENST1"),
-            vec![variant("ENST1.1_0", 2, 2, Some("A"), Some("C")), variant("ENST1.1_1", 9, 9, Some("K"), Some("E"))],
+            vec![
+                variant("ENST1.1_0", 2, 2, Some("A"), Some("C")),
+                variant("ENST1.1_1", 9, 9, Some("K"), Some("E")),
+            ],
         )]
         .into();
         let mut out = Vec::new();

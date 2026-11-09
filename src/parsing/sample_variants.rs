@@ -7,7 +7,7 @@ use crate::types::EnsemblId;
 use crate::variant::Variant;
 
 use super::{
-    log::{log_line_event, log_line_rejection, Stage},
+    log::{Stage, log_line_event, log_line_rejection},
     notation::{positions_match, to_variant},
 };
 
@@ -25,7 +25,8 @@ pub(crate) fn parse_sample_variants(path: &str) -> Result<HashMap<EnsemblId, Vec
             continue;
         }
         let location = format!("{}:{}", path, line_no + 1);
-        let skip = |outcome: String| log_line_rejection(Stage::SampleVariantParsing, &location, &outcome);
+        let skip =
+            |outcome: String| log_line_rejection(Stage::SampleVariantParsing, &location, &outcome);
 
         let mut parts = line.split_whitespace();
 
@@ -63,7 +64,10 @@ pub(crate) fn parse_sample_variants(path: &str) -> Result<HashMap<EnsemblId, Vec
 
         // e.g. "726G>726S" -> Some(Variant { .. }); "garbage!!" -> None, logged and skipped
         let Some(variant) = to_variant(&format!("{}_{}", enst, idx), variant_string) else {
-            skip(format!("skipped, could not parse variant '{}' for {}", variant_string, enst));
+            skip(format!(
+                "skipped, could not parse variant '{}' for {}",
+                variant_string, enst
+            ));
             rejected.insert(enst_id);
             continue;
         };
@@ -77,7 +81,10 @@ pub(crate) fn parse_sample_variants(path: &str) -> Result<HashMap<EnsemblId, Vec
         log_line_event(
             Stage::SampleVariantParsing,
             path,
-            &format!("left out {}: none of its variant lines could be parsed", enst_id),
+            &format!(
+                "left out {}: none of its variant lines could be parsed",
+                enst_id
+            ),
         );
     }
     Ok(variants)

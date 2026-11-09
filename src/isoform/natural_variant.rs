@@ -2,7 +2,7 @@ use crate::types::UniProtIsoId;
 use crate::uniprot::Feature;
 use crate::variant::Variant;
 
-use super::log::{log_entry_rejection, Stage};
+use super::log::{Stage, log_entry_rejection};
 
 impl Feature {
     /// Converts a UniProt natural variant (VARIANT) feature into a `Variant`.
@@ -24,7 +24,10 @@ impl Feature {
             && !self.variations.is_empty()
         {
             if self.variations.len() > 1 {
-                self.log_unmapped(accession, "cannot be mapped: Alternative sequence is ambiguous");
+                self.log_unmapped(
+                    accession,
+                    "cannot be mapped: Alternative sequence is ambiguous",
+                );
                 return None;
             }
             aa_new = self.variations.first().cloned();
@@ -62,15 +65,22 @@ mod tests {
 
     #[test]
     fn maps_a_substitution() {
-        let v = feature(SequenceVariant, "VAR_1", 9, 9, Some("K"), &["E"]).to_natural_variant("P1").unwrap();
+        let v = feature(SequenceVariant, "VAR_1", 9, 9, Some("K"), &["E"])
+            .to_natural_variant("P1")
+            .unwrap();
         assert_eq!((v.id.as_str(), v.begin, v.end), ("VAR_1", 9, 9));
-        assert_eq!((v.aa_ref.as_deref(), v.aa_new.as_deref()), (Some("K"), Some("E")));
+        assert_eq!(
+            (v.aa_ref.as_deref(), v.aa_new.as_deref()),
+            (Some("K"), Some("E"))
+        );
         assert_eq!(v.isoform, None);
     }
 
     #[test]
     fn without_variation_it_encodes_missing_sequence() {
-        let v = feature(SequenceVariant, "VAR_1", 3, 5, Some("DEF"), &[]).to_natural_variant("P1").unwrap();
+        let v = feature(SequenceVariant, "VAR_1", 3, 5, Some("DEF"), &[])
+            .to_natural_variant("P1")
+            .unwrap();
         assert_eq!((v.begin, v.end, v.aa_ref, v.aa_new), (3, 5, None, None));
     }
 
@@ -78,7 +88,10 @@ mod tests {
     fn takes_the_isoform_from_the_location() {
         let mut f = feature(SequenceVariant, "VAR_1", 5, 5, Some("G"), &["A"]);
         f.location_sequence = Some("P1-2".to_string());
-        assert_eq!(f.to_natural_variant("P1").unwrap().isoform, Some(UniProtIsoId::new("P1-2")));
+        assert_eq!(
+            f.to_natural_variant("P1").unwrap().isoform,
+            Some(UniProtIsoId::new("P1-2"))
+        );
     }
 
     #[test]

@@ -101,7 +101,6 @@ pub(crate) struct Cli {
     pub(crate) retry_backoff_ms: u64,
 }
 
-
 #[cfg(test)]
 mod tests {
     use clap::Parser;
@@ -109,7 +108,13 @@ mod tests {
     use super::*;
 
     fn parse(extra: &[&str]) -> Cli {
-        let args = ["sp_embl_builder", "--accessions", "acc.txt", "--idmapping", "map.tsv"];
+        let args = [
+            "sp_embl_builder",
+            "--accessions",
+            "acc.txt",
+            "--idmapping",
+            "map.tsv",
+        ];
         Cli::try_parse_from(args.iter().chain(extra)).expect("valid arguments")
     }
 
@@ -126,8 +131,18 @@ mod tests {
 
     #[test]
     fn boolean_options_work_as_bare_flags() {
-        let cli = parse(&["--uniprot-api-fallback", "--ensembl-api-fallback", "--ebi-variants", "--uniprot-variants"]);
-        assert!(cli.uniprot_api_fallback && cli.ensembl_api_fallback && cli.ebi_variants && cli.uniprot_variants);
+        let cli = parse(&[
+            "--uniprot-api-fallback",
+            "--ensembl-api-fallback",
+            "--ebi-variants",
+            "--uniprot-variants",
+        ]);
+        assert!(
+            cli.uniprot_api_fallback
+                && cli.ensembl_api_fallback
+                && cli.ebi_variants
+                && cli.uniprot_variants
+        );
     }
 
     #[test]

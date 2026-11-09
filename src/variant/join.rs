@@ -1,8 +1,8 @@
 use tracing::info;
 
 use super::{
-    log::{log_variant_event, Stage},
     Variant,
+    log::{Stage, log_variant_event},
 };
 
 pub(crate) trait JoinVariants {

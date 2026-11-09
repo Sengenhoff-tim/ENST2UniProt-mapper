@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 
 use crate::types::{UniProtCanonId, UniProtIsoId};
-use crate::uniprot::{parse_uniprot_xml, Feature, FeatureKind, UniProtEntry};
+use crate::uniprot::{Feature, FeatureKind, UniProtEntry, parse_uniprot_xml};
 use crate::variant::Variant;
 
 /// 20-residue reference sequence in which position `n` (1-based) holds the
@@ -99,7 +99,13 @@ pub(crate) fn rich_entry() -> UniProtEntry {
 }
 
 /// A canonical-sequence variant.
-pub(crate) fn variant(id: &str, begin: usize, end: usize, aa_ref: Option<&str>, aa_new: Option<&str>) -> Variant {
+pub(crate) fn variant(
+    id: &str,
+    begin: usize,
+    end: usize,
+    aa_ref: Option<&str>,
+    aa_new: Option<&str>,
+) -> Variant {
     Variant {
         isoform: None,
         id: id.to_string(),
@@ -111,7 +117,14 @@ pub(crate) fn variant(id: &str, begin: usize, end: usize, aa_ref: Option<&str>, 
 }
 
 /// A variant located on isoform `iso`.
-pub(crate) fn iso_variant(iso: &str, id: &str, begin: usize, end: usize, aa_ref: &str, aa_new: &str) -> Variant {
+pub(crate) fn iso_variant(
+    iso: &str,
+    id: &str,
+    begin: usize,
+    end: usize,
+    aa_ref: &str,
+    aa_new: &str,
+) -> Variant {
     Variant {
         isoform: Some(UniProtIsoId::new(iso)),
         ..variant(id, begin, end, Some(aa_ref), Some(aa_new))

@@ -18,7 +18,10 @@ pub(super) fn build_uniprot_stream_url(accessions: &[String]) -> String {
         .map(|a| format!("accession:{}", a))
         .collect::<Vec<_>>()
         .join("+OR+");
-    format!("{}{}{}", UNIPROT_STREAM_BASE_URL, query, UNIPROT_STREAM_SUFFIX)
+    format!(
+        "{}{}{}",
+        UNIPROT_STREAM_BASE_URL, query, UNIPROT_STREAM_SUFFIX
+    )
 }
 
 /// Splits `accessions` into batches that respect both `MAX_UNIPROT_BATCH_SIZE`
@@ -74,7 +77,10 @@ mod tests {
     fn batches_respect_the_or_condition_limit() {
         let batches = batch_accessions(&accessions(250));
         let sizes: Vec<usize> = batches.iter().map(Vec::len).collect();
-        assert!(sizes.iter().all(|&n| n <= MAX_UNIPROT_BATCH_SIZE), "{sizes:?}");
+        assert!(
+            sizes.iter().all(|&n| n <= MAX_UNIPROT_BATCH_SIZE),
+            "{sizes:?}"
+        );
         assert_eq!(sizes.iter().sum::<usize>(), 250);
     }
 

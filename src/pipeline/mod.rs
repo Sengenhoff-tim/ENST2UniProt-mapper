@@ -23,4 +23,4 @@ mod log;
 mod run;
 mod variants;
 
-pub(crate) use run::{run, RunOptions};
+pub(crate) use run::{RunOptions, run};

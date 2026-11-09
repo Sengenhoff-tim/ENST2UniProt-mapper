@@ -1,10 +1,36 @@
-use super::{log::{log_variant_event, Stage}, Variant};
+use super::{
+    Variant,
+    log::{Stage, log_variant_event},
+};
 
 fn is_valid_aa(c: char) -> bool {
     matches!(
         c,
-        'G' | 'A' | 'S' | 'P' | 'V' | 'T' | 'C' | 'L' | 'I' | 'N' | 'D' | 'Q' | 'K'
-            | 'E' | 'M' | 'H' | 'F' | 'U' | 'R' | 'Y' | 'W' | 'O' | 'J' | 'X' | 'Z' | 'B'
+        'G' | 'A'
+            | 'S'
+            | 'P'
+            | 'V'
+            | 'T'
+            | 'C'
+            | 'L'
+            | 'I'
+            | 'N'
+            | 'D'
+            | 'Q'
+            | 'K'
+            | 'E'
+            | 'M'
+            | 'H'
+            | 'F'
+            | 'U'
+            | 'R'
+            | 'Y'
+            | 'W'
+            | 'O'
+            | 'J'
+            | 'X'
+            | 'Z'
+            | 'B'
     )
 }
 

@@ -119,8 +119,14 @@ mod tests {
 
     #[test]
     fn ensembl_id_from_versioned_strips_the_version() {
-        assert_eq!(EnsemblId::from_versioned("ENST00000269305.9").as_str(), "ENST00000269305");
-        assert_eq!(EnsemblId::from_versioned("ENST00000269305").as_str(), "ENST00000269305");
+        assert_eq!(
+            EnsemblId::from_versioned("ENST00000269305.9").as_str(),
+            "ENST00000269305"
+        );
+        assert_eq!(
+            EnsemblId::from_versioned("ENST00000269305").as_str(),
+            "ENST00000269305"
+        );
     }
 
     #[test]
@@ -132,7 +138,10 @@ mod tests {
 
     #[test]
     fn isoform_id_knows_its_canonical_accession() {
-        assert_eq!(UniProtIsoId::new("P04637-2").canonical(), UniProtCanonId::new("P04637"));
+        assert_eq!(
+            UniProtIsoId::new("P04637-2").canonical(),
+            UniProtCanonId::new("P04637")
+        );
     }
 
     #[test]
@@ -164,7 +173,11 @@ mod tests {
     #[test]
     fn ids_display_and_sort_like_their_string() {
         assert_eq!(EnsemblId::new("ENST1").to_string(), "ENST1");
-        let mut ids = [EnsemblId::new("ENST2"), EnsemblId::new("ENST10"), EnsemblId::new("ENST1")];
+        let mut ids = [
+            EnsemblId::new("ENST2"),
+            EnsemblId::new("ENST10"),
+            EnsemblId::new("ENST1"),
+        ];
         ids.sort();
         let sorted: Vec<&str> = ids.iter().map(EnsemblId::as_str).collect();
         assert_eq!(sorted, ["ENST1", "ENST10", "ENST2"]);

@@ -46,7 +46,12 @@ impl Variant {
     /// Format this variant into VARIANT FT lines.
     pub(super) fn ft_lines(&self) -> Vec<String> {
         let mut lines = Vec::new();
-        lines.push(format_ft_position_line("VARIANT", &self.isoform, self.begin, self.end));
+        lines.push(format_ft_position_line(
+            "VARIANT",
+            &self.isoform,
+            self.begin,
+            self.end,
+        ));
         let note = if let Some(aa_new) = &self.aa_new
             && let Some(aa_ref) = &self.aa_ref
         {
@@ -143,7 +148,10 @@ mod tests {
         entry.features[0].id = None;
         let feature = entry.features[0].clone();
         let lines = var_seq_ft_lines(&feature, &entry).unwrap();
-        assert_eq!(lines.last().unwrap(), "FT                   /id=\"ECO:0000303|PubMed:12345\"");
+        assert_eq!(
+            lines.last().unwrap(),
+            "FT                   /id=\"ECO:0000303|PubMed:12345\""
+        );
     }
 
     #[test]
@@ -157,8 +165,20 @@ mod tests {
     #[test]
     fn evidence_string_resolves_each_source_kind() {
         let mut entry = rich_entry();
-        entry.evidences.insert("2".into(), Evidence { code: "ECO:0000305".into(), source: Some(EvidenceSource::Ref("3".into())) });
-        entry.evidences.insert("3".into(), Evidence { code: "ECO:0000250".into(), source: None });
+        entry.evidences.insert(
+            "2".into(),
+            Evidence {
+                code: "ECO:0000305".into(),
+                source: Some(EvidenceSource::Ref("3".into())),
+            },
+        );
+        entry.evidences.insert(
+            "3".into(),
+            Evidence {
+                code: "ECO:0000250".into(),
+                source: None,
+            },
+        );
         let mut feature = entry.features[0].clone();
         feature.evidence_keys = vec!["1".into(), "2".into(), "3".into(), "unknown".into()];
         assert_eq!(

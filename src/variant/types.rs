@@ -43,7 +43,10 @@ impl std::hash::Hash for Variant {
 /// `EBI:1929:G (canonical:1929-1929 G>W)`. A `-` stands for a `None` field.
 impl fmt::Display for Variant {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let isoform = self.isoform.as_ref().map_or("canonical", |iso| iso.as_str());
+        let isoform = self
+            .isoform
+            .as_ref()
+            .map_or("canonical", |iso| iso.as_str());
         write!(
             f,
             "{} ({}:{}-{} {}>{})",
@@ -71,7 +74,13 @@ mod tests {
 
     #[test]
     fn display_is_compact() {
-        assert_eq!(variant("v1", 3, 4, Some("DE"), None).to_string(), "v1 (canonical:3-4 DE>-)");
-        assert_eq!(iso_variant("P1-2", "v2", 5, 5, "F", "L").to_string(), "v2 (P1-2:5-5 F>L)");
+        assert_eq!(
+            variant("v1", 3, 4, Some("DE"), None).to_string(),
+            "v1 (canonical:3-4 DE>-)"
+        );
+        assert_eq!(
+            iso_variant("P1-2", "v2", 5, 5, "F", "L").to_string(),
+            "v2 (P1-2:5-5 F>L)"
+        );
     }
 }

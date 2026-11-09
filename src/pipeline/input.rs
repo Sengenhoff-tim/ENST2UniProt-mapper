@@ -6,7 +6,7 @@ use anyhow::Result;
 
 use crate::types::{EnsemblId, UniProtCanonId};
 
-use super::log::{log_pipeline_event, Stage};
+use super::log::{Stage, log_pipeline_event};
 
 /// Appends every accession that `id_mapping` maps one of the `ensts` to,
 /// unless it is already in `accessions`. The ENSTs are visited sorted by id
@@ -79,7 +79,10 @@ pub(super) fn ensembl_fallback_candidates<'a>(
                 log_pipeline_event(
                     Stage::TranscriptMapping,
                     enst.as_str(),
-                    &format!("excluded from Ensembl fallback, mapped to omitted {}", id.as_str()),
+                    &format!(
+                        "excluded from Ensembl fallback, mapped to omitted {}",
+                        id.as_str()
+                    ),
                 );
             }
             omitted.is_none()
@@ -104,12 +107,19 @@ mod tests {
     }
 
     fn mapping(pairs: &[(&str, &[&str])]) -> HashMap<EnsemblId, Vec<UniProtCanonId>> {
-        pairs.iter().map(|(e, accs)| (enst(e), accs.iter().map(|a| acc(a)).collect())).collect()
+        pairs
+            .iter()
+            .map(|(e, accs)| (enst(e), accs.iter().map(|a| acc(a)).collect()))
+            .collect()
     }
 
     #[test]
     fn extends_accessions_in_transcript_order_without_duplicates() {
-        let id_mapping = mapping(&[("ENST2", &["P2", "P1"]), ("ENST1", &["P3"]), ("ENST9", &["P9"])]);
+        let id_mapping = mapping(&[
+            ("ENST2", &["P2", "P1"]),
+            ("ENST1", &["P3"]),
+            ("ENST9", &["P9"]),
+        ]);
         let mut accessions = vec![acc("P1")];
         let ensts = [enst("ENST2"), enst("ENST1"), enst("ENST404")];
 
@@ -134,12 +144,17 @@ mod tests {
 
     #[test]
     fn fallback_candidates_are_unconsumed_and_not_omitted() {
-        let id_mapping = mapping(&[("ENST1", &["P1"]), ("ENST2", &["P2"]), ("ENST3", &["P3", "P4"])]);
+        let id_mapping = mapping(&[
+            ("ENST1", &["P1"]),
+            ("ENST2", &["P2"]),
+            ("ENST3", &["P3", "P4"]),
+        ]);
         let variant_ensts = [enst("ENST4"), enst("ENST3"), enst("ENST2"), enst("ENST1")];
         let consumed: HashSet<EnsemblId> = [enst("ENST1")].into();
         let omit: HashSet<UniProtCanonId> = [acc("P4")].into();
 
-        let candidates = ensembl_fallback_candidates(variant_ensts.iter(), &id_mapping, &consumed, &omit);
+        let candidates =
+            ensembl_fallback_candidates(variant_ensts.iter(), &id_mapping, &consumed, &omit);
 
         // ENST1 consumed, ENST3 maps to omitted P4, ENST4 has no mapping and is kept.
         assert_eq!(strs(&candidates), ["ENST2", "ENST4"]);

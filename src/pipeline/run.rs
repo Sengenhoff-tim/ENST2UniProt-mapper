@@ -11,13 +11,13 @@ use tracing::info;
 use crate::parsing::{parse_accession_list, parse_idmapping, parse_sample_variants};
 use crate::types::{EnsemblId, UniProtCanonId};
 use crate::uniprot::{
-    fetch_uniprot_entries, load_uniprot_xml, log_unresolved_accessions, UniProtEntries,
+    UniProtEntries, fetch_uniprot_entries, load_uniprot_xml, log_unresolved_accessions,
 };
-use crate::util::{RetryConfig};
+use crate::util::RetryConfig;
 use crate::variant::Variant;
 
 use super::{
-    entry::{process_entries, EntryContext},
+    entry::{EntryContext, process_entries},
     fallback::handle_unmapped_transcripts,
     input::{ensembl_fallback_candidates, extend_with_mapped_accessions, read_omit_list},
 };
@@ -48,7 +48,8 @@ pub(crate) async fn run(opts: RunOptions) -> Result<()> {
     let retry_config = &opts.retry_config;
     let mut out: Box<dyn Write> = match opts.output_path.as_deref() {
         Some(path) => Box::new(
-            File::create(path).with_context(|| format!("failed to create output file '{}'", path))?,
+            File::create(path)
+                .with_context(|| format!("failed to create output file '{}'", path))?,
         ),
         None => Box::new(io::stdout()),
     };
@@ -61,7 +62,8 @@ pub(crate) async fn run(opts: RunOptions) -> Result<()> {
     };
 
     // 2. Parse id mapping (EnsemblId -> UniProtCanonId) and extend accessions
-    let id_mapping: HashMap<EnsemblId, Vec<UniProtCanonId>> = parse_idmapping(&opts.idmapping_path)?;
+    let id_mapping: HashMap<EnsemblId, Vec<UniProtCanonId>> =
+        parse_idmapping(&opts.idmapping_path)?;
     extend_with_mapped_accessions(&mut accessions, global_sample_variants.keys(), &id_mapping);
 
     // The omit list excludes accessions from both the required list and the XML file.
@@ -81,7 +83,10 @@ pub(crate) async fn run(opts: RunOptions) -> Result<()> {
     };
     let missing = uniprot_entries.missing(&accessions);
     let unresolved = if opts.uniprot_api_fallback && !missing.is_empty() {
-        info!("{} required accessions not in the UniProt XML, querying the UniProt API", missing.len());
+        info!(
+            "{} required accessions not in the UniProt XML, querying the UniProt API",
+            missing.len()
+        );
         let fetched = fetch_uniprot_entries(&missing, retry_config).await?;
         uniprot_entries.add_fetched(missing, fetched)
     } else {
@@ -94,7 +99,7 @@ pub(crate) async fn run(opts: RunOptions) -> Result<()> {
     let sample_variants = Arc::new(global_sample_variants);
     let ctx = EntryContext {
         sample_variants: Arc::clone(&sample_variants),
-        /* 
+        /*
         source_types: Arc::new(opts.source_types.clone()),
         retry_config: *retry_config,
         ebi_rate_limiter: RateLimiter::per_second(EBI_MAX_REQUESTS_PER_SECOND),
@@ -110,12 +115,8 @@ pub(crate) async fn run(opts: RunOptions) -> Result<()> {
     // 5. Sample-variant ENSTs not consumed by any UniProt entry → synthetic
     //    entries from the Ensembl FASTA, then the API if enabled. Nothing the
     //    id mapping ties to an omitted accession is included.
-    let unmapped_enst_ids = ensembl_fallback_candidates(
-        sample_variants.keys(),
-        &id_mapping,
-        &consumed_ensts,
-        &omit,
-    );
+    let unmapped_enst_ids =
+        ensembl_fallback_candidates(sample_variants.keys(), &id_mapping, &consumed_ensts, &omit);
 
     handle_unmapped_transcripts(
         &mut *out,

@@ -113,7 +113,12 @@ mod tests {
     #[test]
     fn count_field_reports_several_records_at_once() {
         let counter = count(|| {
-            warn!(stage = "LOOKUP", rejected = true, count = 5usize, "5 missing");
+            warn!(
+                stage = "LOOKUP",
+                rejected = true,
+                count = 5usize,
+                "5 missing"
+            );
             info!(rejected = true, "no stage");
         });
         assert_eq!(counter.total(), 6);

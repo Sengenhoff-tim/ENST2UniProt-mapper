@@ -2,7 +2,7 @@ use crate::types::{Sequence, UniProtIsoId};
 use crate::uniprot::{Feature, Isoform, IsoformSequenceType, UniProtEntry};
 
 use super::{
-    log::{log_entry_event, log_entry_rejection, Stage},
+    log::{Stage, log_entry_event, log_entry_rejection},
     var_seq::apply_var_seq_features,
 };
 
@@ -17,12 +17,22 @@ impl UniProtEntry {
         let accession = self.primary_accession();
         // An isoform that should have been reconstructable but wasn't.
         let skip = |outcome: &str| {
-            log_entry_rejection(Stage::IsoformReconstruction, accession, isoform_id.as_str(), outcome);
+            log_entry_rejection(
+                Stage::IsoformReconstruction,
+                accession,
+                isoform_id.as_str(),
+                outcome,
+            );
             None
         };
         // An isoform whose sequence UniProt does not describe here, by design.
         let not_applicable = |outcome: &str| {
-            log_entry_event(Stage::IsoformReconstruction, accession, isoform_id.as_str(), outcome);
+            log_entry_event(
+                Stage::IsoformReconstruction,
+                accession,
+                isoform_id.as_str(),
+                outcome,
+            );
             None
         };
 
@@ -31,7 +41,10 @@ impl UniProtEntry {
                 let features: Vec<&Feature> = iso
                     .vsp_ids
                     .iter()
-                    .filter_map(|id| self.var_seq_features().find(|f| f.id.as_deref() == Some(id.as_str())))
+                    .filter_map(|id| {
+                        self.var_seq_features()
+                            .find(|f| f.id.as_deref() == Some(id.as_str()))
+                    })
                     .collect();
 
                 if iso.vsp_ids.is_empty() || features.len() != iso.vsp_ids.len() {
@@ -50,14 +63,15 @@ impl UniProtEntry {
             IsoformSequenceType::NotDescribed => not_applicable(
                 "skipped, isoform sequence status is 'not described' (no VAR_SEQ features to apply)",
             ),
-            IsoformSequenceType::External => {
-                not_applicable("skipped, isoform sequence status is 'external' (sequence lives in another entry)")
-            }
+            IsoformSequenceType::External => not_applicable(
+                "skipped, isoform sequence status is 'external' (sequence lives in another entry)",
+            ),
             IsoformSequenceType::Displayed => None,
             IsoformSequenceType::Missing => skip("skipped, isoform has no sequence status"),
-            IsoformSequenceType::Other(other) => {
-                skip(&format!("skipped, unknown/unsupported isoform sequence status '{}'", other))
-            }
+            IsoformSequenceType::Other(other) => skip(&format!(
+                "skipped, unknown/unsupported isoform sequence status '{}'",
+                other
+            )),
         }
     }
 }
@@ -82,13 +96,22 @@ mod tests {
 
     #[test]
     fn described_isoform_applies_its_vsp_features() {
-        let seq = reconstruct(&isoform(IsoformSequenceType::Described, &["VSP_000001", "VSP_000002"]));
+        let seq = reconstruct(&isoform(
+            IsoformSequenceType::Described,
+            &["VSP_000001", "VSP_000002"],
+        ));
         assert_eq!(seq.unwrap().as_str(), "AWEFGHIKLMNPQRST");
     }
 
     #[test]
     fn described_isoform_with_unknown_or_no_vsp_is_skipped() {
-        assert!(reconstruct(&isoform(IsoformSequenceType::Described, &["VSP_000001", "VSP_404"])).is_none());
+        assert!(
+            reconstruct(&isoform(
+                IsoformSequenceType::Described,
+                &["VSP_000001", "VSP_404"]
+            ))
+            .is_none()
+        );
         assert!(reconstruct(&isoform(IsoformSequenceType::Described, &[])).is_none());
     }
 
@@ -101,7 +124,10 @@ mod tests {
             IsoformSequenceType::Missing,
             IsoformSequenceType::Other("new".into()),
         ] {
-            assert!(reconstruct(&isoform(ty.clone(), &["VSP_000001"])).is_none(), "{ty:?}");
+            assert!(
+                reconstruct(&isoform(ty.clone(), &["VSP_000001"])).is_none(),
+                "{ty:?}"
+            );
         }
     }
 }

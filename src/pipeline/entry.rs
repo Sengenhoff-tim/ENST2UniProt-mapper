@@ -7,14 +7,14 @@ use futures::stream::{self, StreamExt};
 
 // use crate::ebi::{fetch_canon_variations, fetch_iso_variations};
 use crate::format::format_entry;
-use crate::isoform::{collect_and_reconstruct_isoforms, EntryIsoforms};
+use crate::isoform::{EntryIsoforms, collect_and_reconstruct_isoforms};
 use crate::types::{EnsemblId, Sequence, UniProtCanonId, UniProtId, UniProtIsoId};
 use crate::uniprot::UniProtEntry;
 //use crate::util::{RateLimiter, RetryConfig};
 use crate::variant::{JoinVariants, Variant};
 
 use super::{
-    log::{warn_pipeline_rejection, Stage},
+    log::{Stage, warn_pipeline_rejection},
     variants::{retain_valid, try_add_variant},
 };
 
@@ -29,7 +29,7 @@ const MAX_CONCURRENT_ENTRIES: usize = 16;
 pub(super) struct EntryContext {
     /// ENST-derived sample variants, by transcript.
     pub(super) sample_variants: Arc<HashMap<EnsemblId, Vec<Variant>>>,
-    /* 
+    /*
     pub(super) source_types: Arc<Vec<String>>,
     pub(super) retry_config: RetryConfig,
     pub(super) ebi_rate_limiter: RateLimiter,
@@ -78,7 +78,12 @@ pub(super) async fn process_entries(
         while let Some((canonical_id, result)) = pending.remove(&next) {
             write_entry_result(out, &mut consumed_ensts, &canonical_id, result)?;
             next += 1;
-            eprint!("\rProcessed entry {}/{}: {}", next, total, canonical_id.as_str());
+            eprint!(
+                "\rProcessed entry {}/{}: {}",
+                next,
+                total,
+                canonical_id.as_str()
+            );
             io::stderr().flush().ok();
         }
     }
@@ -137,7 +142,7 @@ async fn process_entry(
         combined_variants.join(uniprot_variants);
     }
 
-    /* 
+    /*
     if ctx.ebi_variants_enabled {
         let ebi_variants = fetch_ebi_variants(&ctx, &canonical_id, &entry, &isoforms).await?;
         combined_variants.join(ebi_variants);
@@ -146,7 +151,12 @@ async fn process_entry(
 
     let valid_variants = retain_valid(combined_variants, canonical_id.as_str());
 
-    let line = format_entry(canonical_id.as_str(), entry.sequence(), &valid_variants, Some(&entry));
+    let line = format_entry(
+        canonical_id.as_str(),
+        entry.sequence(),
+        &valid_variants,
+        Some(&entry),
+    );
 
     Ok((line, assigned_enst))
 }
@@ -198,7 +208,7 @@ fn collect_sample_variants(
     (entry_sample_variants, assigned_enst)
 }
 
-/* 
+/*
 /// Fetches EBI variants for the canonical accession and every reconstructed
 /// isoform, resolving each against its own sequence.
 async fn fetch_ebi_variants(
@@ -272,7 +282,10 @@ mod tests {
     }
 
     fn context(uniprot_variants_enabled: bool) -> EntryContext {
-        EntryContext { sample_variants: Arc::new(sample_variants()), uniprot_variants_enabled }
+        EntryContext {
+            sample_variants: Arc::new(sample_variants()),
+            uniprot_variants_enabled,
+        }
     }
 
     fn sorted<T: Ord + Clone>(set: &HashSet<T>) -> Vec<T> {
@@ -293,10 +306,15 @@ mod tests {
             &sample_variants(),
         );
 
-        let placed: Vec<(&str, Option<&str>)> =
-            variants.iter().map(|v| (v.id.as_str(), v.isoform.as_ref().map(UniProtIsoId::as_str))).collect();
+        let placed: Vec<(&str, Option<&str>)> = variants
+            .iter()
+            .map(|v| (v.id.as_str(), v.isoform.as_ref().map(UniProtIsoId::as_str)))
+            .collect();
         // The displayed isoform -1 is an alias for the canonical sequence.
-        assert_eq!(placed, [("s1", None), ("s2", Some("P99999-2")), ("s3", None)]);
+        assert_eq!(
+            placed,
+            [("s1", None), ("s2", Some("P99999-2")), ("s3", None)]
+        );
         assert_eq!(
             sorted(&consumed),
             ["ENST00000000001", "ENST00000000002", "ENST00000000003"].map(EnsemblId::new)
@@ -321,8 +339,12 @@ mod tests {
     #[tokio::test]
     async fn uniprot_variants_are_included_only_when_enabled() {
         let id = UniProtCanonId::new("P99999");
-        let (with, _) = process_entry(&id, rich_entry(), context(true)).await.unwrap();
-        let (without, _) = process_entry(&id, rich_entry(), context(false)).await.unwrap();
+        let (with, _) = process_entry(&id, rich_entry(), context(true))
+            .await
+            .unwrap();
+        let (without, _) = process_entry(&id, rich_entry(), context(false))
+            .await
+            .unwrap();
         assert!(with.contains("/id=\"VAR_000001\""));
         assert!(!without.contains("/id=\"VAR_000001\""));
         assert!(without.contains("/id=\"s3\""));
@@ -334,7 +356,11 @@ mod tests {
         let mut ctx = context(true);
         // Same change as VAR_000001 (9 K -> E), via the canonical transcript.
         ctx.sample_variants = Arc::new(
-            [(EnsemblId::new("ENST00000000003"), vec![variant("s3", 9, 9, Some("K"), Some("E"))])].into(),
+            [(
+                EnsemblId::new("ENST00000000003"),
+                vec![variant("s3", 9, 9, Some("K"), Some("E"))],
+            )]
+            .into(),
         );
         let (line, _) = process_entry(&id, rich_entry(), ctx).await.unwrap();
         assert!(line.contains("/id=\"s3_VAR_000001\""), "{line}");
@@ -344,15 +370,26 @@ mod tests {
     async fn process_entries_writes_in_input_order_and_reports_consumed_transcripts() {
         let entries: Vec<(UniProtCanonId, UniProtEntry)> = ["P3", "P1", "P2"]
             .into_iter()
-            .map(|a| (UniProtCanonId::new(a), parse_entry(&minimal_entry_xml(a, ""))))
+            .map(|a| {
+                (
+                    UniProtCanonId::new(a),
+                    parse_entry(&minimal_entry_xml(a, "")),
+                )
+            })
             .chain([(UniProtCanonId::new("P99999"), rich_entry())])
             .collect();
         let mut out = Vec::new();
 
-        let consumed = process_entries(&mut out, entries, context(true)).await.unwrap();
+        let consumed = process_entries(&mut out, entries, context(true))
+            .await
+            .unwrap();
 
         let out = String::from_utf8(out).unwrap();
-        let ids: Vec<&str> = out.lines().filter_map(|l| l.strip_prefix("ID   ")).map(|l| &l[..6]).collect();
+        let ids: Vec<&str> = out
+            .lines()
+            .filter_map(|l| l.strip_prefix("ID   "))
+            .map(|l| &l[..6])
+            .collect();
         assert_eq!(ids, ["P3    ", "P1    ", "P2    ", "P99999"]);
         assert_eq!(consumed.len(), 3);
     }

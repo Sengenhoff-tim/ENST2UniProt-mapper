@@ -55,7 +55,10 @@ pub(crate) fn format_entry(
         .map(|ap| format!("{}\n", alternative_products_cc(ap)))
         .unwrap_or_default();
 
-    let sq_line = format!("SQ   SEQUENCE   {} AA;  0 MW;  0000000000000000 CRC64;", sequence.len());
+    let sq_line = format!(
+        "SQ   SEQUENCE   {} AA;  0 MW;  0000000000000000 CRC64;",
+        sequence.len()
+    );
     let seq_body = format_seq_body(sequence);
     let acc = accession;
 
@@ -88,7 +91,7 @@ KW   Generated for ProtGraph{ft_block}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::{rich_entry, variant, SEQ};
+    use crate::test_support::{SEQ, rich_entry, variant};
 
     #[test]
     fn uniprot_backed_entry_has_names_isoforms_and_features() {
@@ -115,7 +118,12 @@ mod tests {
     #[test]
     fn var_seq_lines_precede_variant_lines() {
         let entry = rich_entry();
-        let out = format_entry("P99999", SEQ, &[variant("V", 1, 1, Some("A"), Some("C"))], Some(&entry));
+        let out = format_entry(
+            "P99999",
+            SEQ,
+            &[variant("V", 1, 1, Some("A"), Some("C"))],
+            Some(&entry),
+        );
         assert!(out.find("FT   VAR_SEQ").unwrap() < out.find("FT   VARIANT").unwrap());
     }
 

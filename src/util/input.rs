@@ -21,15 +21,18 @@ pub(crate) fn open_maybe_gz(path: &Path) -> Result<Box<dyn BufRead + Send>> {
 mod tests {
     use std::io::{Read, Write};
 
-    use flate2::write::GzEncoder;
     use flate2::Compression;
+    use flate2::write::GzEncoder;
 
     use super::*;
     use crate::test_support::write_file;
 
     fn read_all(path: &Path) -> String {
         let mut content = String::new();
-        open_maybe_gz(path).unwrap().read_to_string(&mut content).unwrap();
+        open_maybe_gz(path)
+            .unwrap()
+            .read_to_string(&mut content)
+            .unwrap();
         content
     }
 
@@ -53,7 +56,9 @@ mod tests {
 
     #[test]
     fn missing_file_is_an_error_naming_the_path() {
-        let err = open_maybe_gz(Path::new("/nonexistent/input.txt")).err().unwrap();
+        let err = open_maybe_gz(Path::new("/nonexistent/input.txt"))
+            .err()
+            .unwrap();
         assert!(err.to_string().contains("/nonexistent/input.txt"), "{err}");
     }
 }

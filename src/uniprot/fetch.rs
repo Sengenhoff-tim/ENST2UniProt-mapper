@@ -1,11 +1,11 @@
 use std::collections::{HashMap, HashSet};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use futures::stream::{self, StreamExt};
 use tracing::info;
 
 use crate::types::UniProtCanonId;
-use crate::util::{with_retries, RateLimiter, RetryConfig};
+use crate::util::{RateLimiter, RetryConfig, with_retries};
 
 use super::{
     batch::{batch_accessions, build_uniprot_stream_url},

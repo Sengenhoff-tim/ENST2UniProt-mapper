@@ -7,9 +7,9 @@ use std::collections::HashSet;
 use std::io::BufRead;
 use std::path::Path;
 
-use anyhow::{bail, Context, Result};
-use quick_xml::events::{BytesEnd, BytesStart, Event};
+use anyhow::{Context, Result, bail};
 use quick_xml::Reader;
+use quick_xml::events::{BytesEnd, BytesStart, Event};
 use tracing::{info, warn};
 
 use crate::types::UniProtCanonId;
@@ -45,16 +45,23 @@ pub(crate) fn parse_uniprot_xml<B: BufRead>(
 
     loop {
         buf.clear();
-        let event = xml
-            .read_event_into(&mut buf)
-            .with_context(|| format!("malformed UniProt XML in {} at byte {}", source, xml.buffer_position()))?;
+        let event = xml.read_event_into(&mut buf).with_context(|| {
+            format!(
+                "malformed UniProt XML in {} at byte {}",
+                source,
+                xml.buffer_position()
+            )
+        })?;
         match event {
             Event::Start(e) if e.local_name().as_ref() == b"entry" => {
                 seen += 1;
                 let end = e.to_end().into_owned();
                 let position = xml.buffer_position();
                 let entry = parse_entry(&mut xml, &end, omit).with_context(|| {
-                    format!("malformed UniProt XML in {} (entry starting at byte {})", source, position)
+                    format!(
+                        "malformed UniProt XML in {} (entry starting at byte {})",
+                        source, position
+                    )
                 })?;
                 if let Some(entry) = entry {
                     let id = UniProtCanonId::new(entry.primary_accession());
@@ -141,11 +148,15 @@ fn parse_entry<B: BufRead>(
                         }
                     }
                     "comment/event" if in_alternative_products => {
-                        if let (Some(ap), Some(ty)) = (entry.alternative_products.as_mut(), attr(&e, "type")?) {
+                        if let (Some(ap), Some(ty)) =
+                            (entry.alternative_products.as_mut(), attr(&e, "type")?)
+                        {
                             ap.events.push(ty);
                         }
                     }
-                    "comment/isoform" if in_alternative_products => isoform = Some(Isoform::default()),
+                    "comment/isoform" if in_alternative_products => {
+                        isoform = Some(Isoform::default())
+                    }
                     "comment/isoform/sequence" => {
                         if let Some(iso) = isoform.as_mut() {
                             iso.sequence_type = attr(&e, "type")?
@@ -158,7 +169,10 @@ fn parse_entry<B: BufRead>(
                     }
                     "dbReference" => {
                         ensembl = match (attr(&e, "type")?.as_deref(), attr(&e, "id")?) {
-                            (Some("Ensembl"), Some(id)) => Some(EnsemblRef { transcript_id: id, molecule: None }),
+                            (Some("Ensembl"), Some(id)) => Some(EnsemblRef {
+                                transcript_id: id,
+                                molecule: None,
+                            }),
                             _ => None,
                         };
                     }
@@ -268,7 +282,9 @@ fn parse_entry<B: BufRead>(
                         }
                     }
                     "comment/isoform" => {
-                        if let (Some(ap), Some(iso)) = (entry.alternative_products.as_mut(), isoform.take()) {
+                        if let (Some(ap), Some(iso)) =
+                            (entry.alternative_products.as_mut(), isoform.take())
+                        {
                             ap.isoforms.push(iso);
                         }
                     }
@@ -303,7 +319,11 @@ fn parse_entry<B: BufRead>(
     }
 
     if entry.accessions.is_empty() {
-        warn!(stage = STAGE, rejected = true, "skipped UniProt entry without <accession>");
+        warn!(
+            stage = STAGE,
+            rejected = true,
+            "skipped UniProt entry without <accession>"
+        );
         return Ok(None);
     }
     if entry.sequence.is_empty() {
@@ -334,7 +354,7 @@ fn position(e: &BytesStart) -> Result<Option<usize>> {
 mod tests {
     use super::*;
     use crate::test_support::{
-        minimal_entry_xml, parse_entries, parse_entry, rich_entry, rich_entry_xml, uniprot_xml, SEQ,
+        SEQ, minimal_entry_xml, parse_entries, parse_entry, rich_entry, rich_entry_xml, uniprot_xml,
     };
     use crate::uniprot::FeatureKind;
 
@@ -360,8 +380,15 @@ mod tests {
     #[test]
     fn keeps_only_splice_and_sequence_variant_features() {
         let entry = rich_entry();
-        let ids: Vec<&str> = entry.features.iter().filter_map(|f| f.id.as_deref()).collect();
-        assert_eq!(ids, ["VSP_000001", "VSP_000002", "VAR_000001", "VAR_000002"]);
+        let ids: Vec<&str> = entry
+            .features
+            .iter()
+            .filter_map(|f| f.id.as_deref())
+            .collect();
+        assert_eq!(
+            ids,
+            ["VSP_000001", "VSP_000002", "VAR_000001", "VAR_000002"]
+        );
     }
 
     #[test]
@@ -390,7 +417,10 @@ mod tests {
             "P1",
             r#"<feature type="sequence variant" id="VAR_1"><location><begin status="unknown"/><end position="4"/></location></feature>"#,
         ));
-        assert_eq!((entry.features[0].begin, entry.features[0].end), (None, Some(4)));
+        assert_eq!(
+            (entry.features[0].begin, entry.features[0].end),
+            (None, Some(4))
+        );
     }
 
     #[test]
@@ -405,14 +435,19 @@ mod tests {
         assert_eq!(iso2.names, ["2", "Beta"]);
         assert_eq!(iso2.sequence_type, IsoformSequenceType::Described);
         assert_eq!(iso2.vsp_ids, ["VSP_000001", "VSP_000002"]);
-        assert_eq!(ap.isoforms[2].sequence_type, IsoformSequenceType::NotDescribed);
+        assert_eq!(
+            ap.isoforms[2].sequence_type,
+            IsoformSequenceType::NotDescribed
+        );
     }
 
     #[test]
     fn reads_ensembl_cross_references_with_molecules() {
         let refs = rich_entry().ensembl_refs;
-        let refs: Vec<(&str, Option<&str>)> =
-            refs.iter().map(|r| (r.transcript_id.as_str(), r.molecule.as_deref())).collect();
+        let refs: Vec<(&str, Option<&str>)> = refs
+            .iter()
+            .map(|r| (r.transcript_id.as_str(), r.molecule.as_deref()))
+            .collect();
         assert_eq!(
             refs,
             [
@@ -432,7 +467,9 @@ mod tests {
                <evidence type="ECO:0000250" key="3"/>"#,
         ));
         let source = |key: &str| entry.evidences[key].source.clone();
-        assert!(matches!(source("1"), Some(EvidenceSource::DbRef { db, id }) if db == "PubMed" && id == "123"));
+        assert!(
+            matches!(source("1"), Some(EvidenceSource::DbRef { db, id }) if db == "PubMed" && id == "123")
+        );
         assert!(matches!(source("2"), Some(EvidenceSource::Ref(r)) if r == "3"));
         assert!(source("3").is_none());
         assert_eq!(entry.evidences["3"].code, "ECO:0000250");
@@ -464,8 +501,14 @@ mod tests {
     #[test]
     fn keeps_the_first_of_duplicate_entries() {
         let entries = [
-            minimal_entry_xml("P1", "<protein><recommendedName><fullName>first</fullName></recommendedName></protein>"),
-            minimal_entry_xml("P1", "<protein><recommendedName><fullName>second</fullName></recommendedName></protein>"),
+            minimal_entry_xml(
+                "P1",
+                "<protein><recommendedName><fullName>first</fullName></recommendedName></protein>",
+            ),
+            minimal_entry_xml(
+                "P1",
+                "<protein><recommendedName><fullName>second</fullName></recommendedName></protein>",
+            ),
         ];
         let parsed = parse_entries(&entries);
         assert_eq!(parsed.len(), 1);

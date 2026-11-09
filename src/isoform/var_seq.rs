@@ -1,5 +1,5 @@
-use anyhow::{anyhow, Result};
 use crate::uniprot::Feature;
+use anyhow::{Result, anyhow};
 
 /// Apply a set of VAR_SEQ features to the canonical sequence to produce an
 /// isoform sequence. Features must be applied in descending position order
@@ -11,8 +11,12 @@ pub(super) fn apply_var_seq_features(canonical: &str, features: &[&Feature]) -> 
     let mut seq = canonical.to_string();
 
     for feature in sorted {
-        let start = feature.begin.ok_or_else(|| anyhow!("VAR_SEQ begin position is unknown"))?;
-        let end = feature.end.ok_or_else(|| anyhow!("VAR_SEQ end position is unknown"))?;
+        let start = feature
+            .begin
+            .ok_or_else(|| anyhow!("VAR_SEQ begin position is unknown"))?;
+        let end = feature
+            .end
+            .ok_or_else(|| anyhow!("VAR_SEQ end position is unknown"))?;
 
         if start == 0 || start > end || end > seq.len() {
             return Err(anyhow!(
@@ -51,7 +55,7 @@ pub(super) fn apply_var_seq_features(canonical: &str, features: &[&Feature]) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::{feature, SEQ};
+    use crate::test_support::{SEQ, feature};
     use crate::uniprot::FeatureKind::SpliceVariant;
 
     fn apply(features: &[Feature]) -> Result<String> {

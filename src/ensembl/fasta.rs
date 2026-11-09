@@ -82,7 +82,12 @@ pub(crate) fn load_ensembl_fasta(
             unrecognized
         );
     }
-    info!("{}: kept {} of {} requested transcripts", path.display(), sequences.len(), wanted.len());
+    info!(
+        "{}: kept {} of {} requested transcripts",
+        path.display(),
+        sequences.len(),
+        wanted.len()
+    );
     Ok(sequences)
 }
 
@@ -101,12 +106,18 @@ mod tests {
     #[test]
     fn transcript_id_from_ensembl_pep_header() {
         let header = "ENSP00000493376.2 pep chromosome:GRCh38:1:65565:71585:1 gene:ENSG00000186092.7 transcript:ENST00000641515.2 gene_biotype:protein_coding";
-        assert_eq!(transcript_id(header), Some(EnsemblId::new("ENST00000641515")));
+        assert_eq!(
+            transcript_id(header),
+            Some(EnsemblId::new("ENST00000641515"))
+        );
     }
 
     #[test]
     fn transcript_id_from_bare_header() {
-        assert_eq!(transcript_id("ENST00000641515.2"), Some(EnsemblId::new("ENST00000641515")));
+        assert_eq!(
+            transcript_id("ENST00000641515.2"),
+            Some(EnsemblId::new("ENST00000641515"))
+        );
         assert_eq!(transcript_id("sp|P12345|FOO"), None);
     }
 
