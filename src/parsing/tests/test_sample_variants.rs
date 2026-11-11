@@ -4,7 +4,7 @@ use crate::test_support::write_file;
 fn parse(content: &str) -> HashMap<EnsemblId, Vec<Variant>> {
     let dir = tempfile::tempdir().unwrap();
     let path = write_file(&dir, "variants.txt", content);
-    parse_sample_variants(path.to_str().unwrap()).unwrap()
+    parse_sample_variants(&path).unwrap()
 }
 
 #[test]

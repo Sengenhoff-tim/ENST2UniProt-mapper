@@ -4,7 +4,7 @@ use crate::test_support::write_file;
 fn parse(content: &str) -> HashMap<EnsemblId, Vec<UniProtCanonId>> {
     let dir = tempfile::tempdir().unwrap();
     let path = write_file(&dir, "idmapping.tsv", content);
-    parse_idmapping(path.to_str().unwrap()).unwrap()
+    parse_idmapping(&path).unwrap()
 }
 
 fn accessions_of<'a>(

@@ -4,10 +4,10 @@ use super::*;
 
 fn parse(extra: &[&str]) -> Cli {
     let args = [
-        "sp_embl_builder",
-        "--accessions",
+        "protgraph-input-builder",
+        "--ensure-accessions",
         "acc.txt",
-        "--idmapping",
+        "--ensembl-idmapping",
         "map.tsv",
     ];
     Cli::try_parse_from(args.iter().chain(extra)).expect("valid arguments")
@@ -19,9 +19,9 @@ fn defaults_keep_apis_and_ebi_off() {
     assert!(!cli.uniprot_api_fallback);
     assert!(!cli.ensembl_api_fallback);
     assert!(!cli.ebi_variants);
-    assert!(cli.uniprot_variants);
-    assert_eq!(cli.exceptions, "exceptions.log");
-    assert_eq!(cli.max_attempts, DEFAULT_MAX_ATTEMPTS);
+    assert!(cli.include_uniprot_variants);
+    assert_eq!(cli.log_file.to_str(), Some("exceptions.log"));
+    assert_eq!(cli.api_max_attempts, DEFAULT_MAX_ATTEMPTS);
 }
 
 #[test]
@@ -30,20 +30,23 @@ fn boolean_options_work_as_bare_flags() {
         "--uniprot-api-fallback",
         "--ensembl-api-fallback",
         "--ebi-variants",
-        "--uniprot-variants",
+        "--include-uniprot-variants",
     ]);
     assert!(
         cli.uniprot_api_fallback
             && cli.ensembl_api_fallback
             && cli.ebi_variants
-            && cli.uniprot_variants
+            && cli.include_uniprot_variants
     );
 }
 
 #[test]
 fn boolean_options_take_explicit_values() {
-    let cli = parse(&["--uniprot-variants=false", "--uniprot-api-fallback=true"]);
-    assert!(!cli.uniprot_variants);
+    let cli = parse(&[
+        "--include-uniprot-variants=false",
+        "--uniprot-api-fallback=true",
+    ]);
+    assert!(!cli.include_uniprot_variants);
     assert!(cli.uniprot_api_fallback);
 }
 
@@ -56,5 +59,5 @@ fn input_files_are_optional_paths() {
 
 #[test]
 fn accessions_and_idmapping_are_required() {
-    assert!(Cli::try_parse_from(["sp_embl_builder", "--accessions", "a"]).is_err());
+    assert!(Cli::try_parse_from(["protgraph-input-builder", "--ensure-accessions", "a"]).is_err());
 }

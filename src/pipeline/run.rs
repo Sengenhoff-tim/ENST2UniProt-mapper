@@ -24,11 +24,11 @@ use super::{
 
 /// Everything `run` needs, as resolved from the command line.
 pub(crate) struct RunOptions {
-    pub(crate) accessions_path: String,
-    pub(crate) variants_path: Option<String>,
-    pub(crate) idmapping_path: String,
-    pub(crate) omit_accessions: Option<PathBuf>,
-    pub(crate) output_path: Option<String>,
+    pub(crate) ensure_accessions: PathBuf,
+    pub(crate) sample_variants: Option<PathBuf>,
+    pub(crate) ensembl_idmapping: PathBuf,
+    pub(crate) exclude_accessions: Option<PathBuf>,
+    pub(crate) output: Option<PathBuf>,
     /// Local UniProt XML (optionally gzipped); primary source of entries.
     pub(crate) uniprot_xml: Option<PathBuf>,
     /// Query the UniProt API for accessions missing from `uniprot_xml`.
@@ -46,28 +46,28 @@ pub(crate) struct RunOptions {
 
 pub(crate) async fn run(opts: RunOptions) -> Result<()> {
     let retry_config = &opts.retry_config;
-    let mut out: Box<dyn Write> = match opts.output_path.as_deref() {
+    let mut out: Box<dyn Write> = match opts.output.as_deref() {
         Some(path) => Box::new(
             File::create(path)
-                .with_context(|| format!("failed to create output file '{}'", path))?,
+                .with_context(|| format!("failed to create output file '{}'", path.display()))?,
         ),
         None => Box::new(io::stdout()),
     };
 
     // 1. Parse inputs
-    let mut accessions: Vec<UniProtCanonId> = parse_accession_list(&opts.accessions_path)?;
-    let global_sample_variants: HashMap<EnsemblId, Vec<Variant>> = match &opts.variants_path {
+    let mut accessions: Vec<UniProtCanonId> = parse_accession_list(&opts.ensure_accessions)?;
+    let global_sample_variants: HashMap<EnsemblId, Vec<Variant>> = match &opts.sample_variants {
         Some(path) => parse_sample_variants(path)?,
         None => HashMap::new(),
     };
 
     // 2. Parse id mapping (EnsemblId -> UniProtCanonId) and extend accessions
     let id_mapping: HashMap<EnsemblId, Vec<UniProtCanonId>> =
-        parse_idmapping(&opts.idmapping_path)?;
+        parse_idmapping(&opts.ensembl_idmapping)?;
     extend_with_mapped_accessions(&mut accessions, global_sample_variants.keys(), &id_mapping);
 
-    // The omit list excludes accessions from both the required list and the XML file.
-    let omit = read_omit_list(opts.omit_accessions.as_deref())?;
+    // The exclude list applies to both the ensured accessions and the XML file.
+    let omit = read_omit_list(opts.exclude_accessions.as_deref())?;
     if !omit.is_empty() {
         accessions.retain(|id| !omit.contains(id));
     }

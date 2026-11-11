@@ -1,5 +1,6 @@
 use std::collections::{BTreeSet, HashMap};
 use std::fs;
+use std::path::Path;
 
 use anyhow::{Context, Result};
 
@@ -12,9 +13,9 @@ use super::{
 };
 
 /// parse a ensembl transcript mapped variant input file, returning a map of Ensembl-ID → list of variants.
-pub(crate) fn parse_sample_variants(path: &str) -> Result<HashMap<EnsemblId, Vec<Variant>>> {
+pub(crate) fn parse_sample_variants(path: &Path) -> Result<HashMap<EnsemblId, Vec<Variant>>> {
     let content = fs::read_to_string(path)
-        .with_context(|| format!("failed to read variants file '{}'", path))?;
+        .with_context(|| format!("failed to read variants file '{}'", path.display()))?;
     let mut variants: HashMap<EnsemblId, Vec<Variant>> = HashMap::new();
     // Transcripts with at least one rejected line (sorted for stable logs).
     let mut rejected: BTreeSet<EnsemblId> = BTreeSet::new();
@@ -24,7 +25,7 @@ pub(crate) fn parse_sample_variants(path: &str) -> Result<HashMap<EnsemblId, Vec
         if line.is_empty() {
             continue;
         }
-        let location = format!("{}:{}", path, line_no + 1);
+        let location = format!("{}:{}", path.display(), line_no + 1);
         let skip =
             |outcome: String| log_line_rejection(Stage::SampleVariantParsing, &location, &outcome);
 
@@ -80,7 +81,7 @@ pub(crate) fn parse_sample_variants(path: &str) -> Result<HashMap<EnsemblId, Vec
     for enst_id in rejected.iter().filter(|id| !variants.contains_key(*id)) {
         log_line_event(
             Stage::SampleVariantParsing,
-            path,
+            &path.display().to_string(),
             &format!(
                 "left out {}: none of its variant lines could be parsed",
                 enst_id

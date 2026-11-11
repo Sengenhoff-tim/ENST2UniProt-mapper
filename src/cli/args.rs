@@ -2,37 +2,39 @@
 // CLI argument definition
 // ============================================================================
 
+use std::path::PathBuf;
+
 use crate::util::{DEFAULT_MAX_ATTEMPTS, DEFAULT_RETRY_BACKOFF_MS, DEFAULT_TIMEOUT_SECS};
 
 #[derive(clap::Parser)]
-#[command(about = "Map variants from UniProt/EBI onto isoform sequences")]
+#[command(about = "Builds truncated UniProt flat files as input for ProtGraph")]
 pub(crate) struct Cli {
-    /// Path to accession list file: accessions that must be in the output in
-    /// addition to every entry of --uniprot-xml. Those not in the XML are
-    /// fetched via --uniprot-api-fallback if enabled, and logged otherwise.
-    #[arg(long)]
-    pub(crate) accessions: String,
-
-    /// Path to UniProt/Ensembl id mapping file, used to extend the
-    /// accession list with accessions derived from ENST variant ids.
-    #[arg(long)]
-    pub(crate) idmapping: String,
-
-    /// Path to a file containing UniProt canonical accessions to exclude from
-    /// the final accession list, one per line (applied as the last step, after
-    /// id-mapping extension).
+    /// Accessions to ensure in the output, one per line, in addition to every
+    /// entry of --uniprot-xml. Those not in the XML are fetched via
+    /// --uniprot-api-fallback if enabled, and logged otherwise.
     #[arg(long, value_name = "FILE")]
-    pub(crate) omit_accessions: Option<std::path::PathBuf>,
+    pub(crate) ensure_accessions: PathBuf,
 
-    /// Path to ENST variant file. If omitted, no ENST-derived sample variants
-    /// are included (only UniProt/EBI variants, per --uniprot-variants /
+    /// UniProt/Ensembl id mapping file, used to extend --ensure-accessions
+    /// with the accessions that the ENSTs of --sample-variants map to.
+    #[arg(long, value_name = "FILE")]
+    pub(crate) ensembl_idmapping: PathBuf,
+
+    /// UniProt canonical accessions to exclude from the output, one per line.
+    /// Applies to --ensure-accessions (after the id-mapping extension) and to
+    /// the entries of --uniprot-xml.
+    #[arg(long, value_name = "FILE")]
+    pub(crate) exclude_accessions: Option<PathBuf>,
+
+    /// ENST sample variant file. If omitted, no ENST-derived sample variants
+    /// are included (only UniProt/EBI variants, per --include-uniprot-variants /
     /// --ebi-variants).
-    #[arg(long)]
-    pub(crate) variants: Option<String>,
+    #[arg(long, value_name = "FILE")]
+    pub(crate) sample_variants: Option<PathBuf>,
 
-    /// Path to write the synthetic flat-file output to. Defaults to stdout.
-    #[arg(long)]
-    pub(crate) output: Option<String>,
+    /// File to write the synthetic flat-file output to. Defaults to stdout.
+    #[arg(long, value_name = "FILE")]
+    pub(crate) output: Option<PathBuf>,
 
     /// Filter EBI variants by sourceType (comma-separated, up to 2).
     /// Allowed values: uniprot, large scale study, mixed, clinvar, nci-tcga,
@@ -49,19 +51,19 @@ pub(crate) struct Cli {
     /// Whether to include UniProt-annotated variants. If false, UniProt's own
     /// variant annotations are excluded (ENST/EBI-derived variants from other
     /// sources are unaffected by this flag).
-    /// Can be used as flag (--uniprot-variants) or with explicit value (--uniprot-variants true/false).
+    /// Can be used as flag (--include-uniprot-variants) or with explicit value (--include-uniprot-variants=true/false).
     #[arg(long, default_value_t = true, value_parser = clap::value_parser!(bool), action = clap::ArgAction::Set, num_args = 0..=1, require_equals = true, default_missing_value = "true")]
-    pub(crate) uniprot_variants: bool,
+    pub(crate) include_uniprot_variants: bool,
 
     /// UniProt XML file (e.g. a UniProtKB download or `uniprot_sprot.xml.gz`;
     /// `.gz` is decompressed transparently). Every entry in it is processed
-    /// (except those in --omit-accessions). Required unless
+    /// (except those in --exclude-accessions). Required unless
     /// --uniprot-api-fallback is set.
     #[arg(long, value_name = "FILE")]
-    pub(crate) uniprot_xml: Option<std::path::PathBuf>,
+    pub(crate) uniprot_xml: Option<PathBuf>,
 
-    /// Query the UniProt REST API for accessions from --accessions (or derived
-    /// via --idmapping) that are not in --uniprot-xml. Without it, such
+    /// Query the UniProt REST API for accessions from --ensure-accessions (or
+    /// derived via --ensembl-idmapping) that are not in --uniprot-xml. Without it, such
     /// accessions are only logged.
     /// Can be used as flag (--uniprot-api-fallback) or with explicit value (--uniprot-api-fallback=true/false).
     #[arg(long, default_value_t = false, value_parser = clap::value_parser!(bool), action = clap::ArgAction::Set, num_args = 0..=1, require_equals = true, default_missing_value = "true")]
@@ -72,33 +74,33 @@ pub(crate) struct Cli {
     /// without a UniProt mapping. Records are keyed by the `transcript:`
     /// header field, or by the first header token if that is an ENST id.
     #[arg(long, value_name = "FILE")]
-    pub(crate) ensembl_fasta: Option<std::path::PathBuf>,
+    pub(crate) ensembl_fasta: Option<PathBuf>,
 
     /// Query the Ensembl REST API for transcripts not found in --ensembl-fasta.
     /// Can be used as flag (--ensembl-api-fallback) or with explicit value (--ensembl-api-fallback=true/false).
     #[arg(long, default_value_t = false, value_parser = clap::value_parser!(bool), action = clap::ArgAction::Set, num_args = 0..=1, require_equals = true, default_missing_value = "true")]
     pub(crate) ensembl_api_fallback: bool,
 
-    /// Path to write skipped/malformed-input exceptions to, as tab-separated
-    /// `<identifier>\t<message>` lines.
-    #[arg(long, default_value = "exceptions.log")]
-    pub(crate) exceptions: String,
+    /// File to write the run log to: every event, including skipped and
+    /// malformed input records.
+    #[arg(long, value_name = "FILE", default_value = "exceptions.log")]
+    pub(crate) log_file: PathBuf,
 
     /// Per-request timeout, in seconds, for outgoing REST calls (UniProt,
     /// EBI, Ensembl). Covers connect + write + read for a single attempt;
     /// each attempt is retried independently on failure.
     #[arg(long, default_value_t = DEFAULT_TIMEOUT_SECS)]
-    pub(crate) timeout_secs: u64,
+    pub(crate) api_timeout_secs: u64,
 
     /// Number of attempts (including the first) before a failed fetch is
     /// treated as fatal and the program exits.
     #[arg(long, default_value_t = DEFAULT_MAX_ATTEMPTS)]
-    pub(crate) max_attempts: u32,
+    pub(crate) api_max_attempts: u32,
 
     /// Base backoff, in milliseconds, between retry attempts. Doubles after
     /// each failed attempt (e.g. 500ms -> 1s -> 2s -> ...).
     #[arg(long, default_value_t = DEFAULT_RETRY_BACKOFF_MS)]
-    pub(crate) retry_backoff_ms: u64,
+    pub(crate) api_retry_backoff_ms: u64,
 }
 
 #[cfg(test)]

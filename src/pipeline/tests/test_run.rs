@@ -20,27 +20,21 @@ async fn run_offline() -> Vec<String> {
         minimal_entry_xml("P77777", ""),
     ]);
     let opts = RunOptions {
-        accessions_path: path("acc.txt", "P00000\n").display().to_string(),
-        variants_path: Some(
-            path(
-                "variants.txt",
-                "ENST00000000002.1\t3E>3K\n\
+        ensure_accessions: path("acc.txt", "P00000\n"),
+        sample_variants: Some(path(
+            "variants.txt",
+            "ENST00000000002.1\t3E>3K\n\
                  ENST00000000009.1\t2C>2Y\n\
                  ENST00000000030.1\t2A>2C\n\
                  ENST00000000040.1\t1M>1V\n\
                  ENST00000000050.1\t1M>1V\n",
-            )
-            .display()
-            .to_string(),
-        ),
-        idmapping_path: path(
+        )),
+        ensembl_idmapping: path(
             "idmapping.tsv",
             "P99999-2\tENST00000000002.1\nP77777\tENST00000000030.1\nP66666\tENST00000000040.1\n",
-        )
-        .display()
-        .to_string(),
-        omit_accessions: Some(path("omit.txt", "P77777\n")),
-        output_path: Some(dir.path().join("out.txt").display().to_string()),
+        ),
+        exclude_accessions: Some(path("omit.txt", "P77777\n")),
+        output: Some(dir.path().join("out.txt")),
         uniprot_xml: Some(path("uniprot.xml", &xml)),
         uniprot_api_fallback: false,
         ensembl_fasta: Some(path(
@@ -51,7 +45,7 @@ async fn run_offline() -> Vec<String> {
         retry_config: RetryConfig::default(),
         uniprot_variants_enabled: true,
     };
-    let output_path = opts.output_path.clone().unwrap();
+    let output_path = opts.output.clone().unwrap();
 
     run(opts).await.unwrap();
 

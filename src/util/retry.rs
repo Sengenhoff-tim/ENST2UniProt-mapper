@@ -4,16 +4,16 @@ use std::time::Duration;
 use anyhow::{Context, Result};
 
 /// Default per-request timeout (connect + write + read) applied to every
-/// outgoing REST call, overridable via `--timeout-secs`.
+/// outgoing REST call, overridable via `--api-timeout-secs`.
 /// Generous on purpose, as an invalid fetch is irrecoverable.
 pub(crate) const DEFAULT_TIMEOUT_SECS: u64 = 30;
 
 /// Default number of attempts (including the first) before a fetch is
-/// treated as fatal, overridable via `--max-attempts`.
+/// treated as fatal, overridable via `--api-max-attempts`.
 pub(crate) const DEFAULT_MAX_ATTEMPTS: u32 = 5;
 
 /// Default base backoff (doubled after each failed attempt), overridable
-/// via `--retry-backoff-ms`.
+/// via `--api-retry-backoff-ms`.
 pub(crate) const DEFAULT_RETRY_BACKOFF_MS: u64 = 500;
 
 /// Bundles the retry/timeout knobs exposed on the CLI so fetch functions

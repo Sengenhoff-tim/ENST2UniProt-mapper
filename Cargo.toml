@@ -1,11 +1,11 @@
 [package]
-name = "sp_embl_builder"
+name = "protgraph-input-builder"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
-description = "Map variants from UniProt/EBI onto isoform sequences"
+description = "Builds truncated UniProt flat files as input for ProtGraph"
 license = "MIT"
-repository = "https://github.com/Sengenhoff-tim/sp_embl_builder"
+repository = "https://github.com/Sengenhoff-tim/protgraph-input-builder"
 
 [dependencies]
 # CLI and errors

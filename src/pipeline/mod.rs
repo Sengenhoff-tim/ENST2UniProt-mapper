@@ -1,9 +1,9 @@
 //! Workflow:
-//! 1) Parse accession list and ENST variant file; the accession list (extended
-//!    via the id mapping, minus the omit list) is the set of entries that must
-//!    be present in the output
-//! 2) Load all entries of the UniProt XML file (minus the omit list); required
-//!    accessions missing from it are fetched from the UniProt REST API if
+//! 1) Parse the ensured accessions and the ENST sample variant file; the
+//!    ensured accessions (extended via the id mapping, minus the excluded
+//!    accessions) are the entries to ensure in the output
+//! 2) Load all entries of the UniProt XML file (minus the excluded accessions);
+//!    ensured accessions missing from it are fetched from the UniProt REST API if
 //!    enabled, and logged otherwise — provides canonical sequence,
 //!    isoform VAR_SEQ features, CC ALTERNATIVE PRODUCTS, and ENST→isoform
 //!    cross-references
