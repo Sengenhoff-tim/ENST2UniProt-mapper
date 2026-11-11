@@ -22,9 +22,11 @@ pub(super) fn retain_valid(variants: Vec<Variant>, owner: &str) -> Vec<Variant> 
             let ok = v.is_valid();
             if !ok {
                 log_pipeline_rejection(
-                    Stage::VariantValidation,
+                    Stage::ValidationSafetyNet,
                     owner,
-                    &format!("dropped variant {} after failed validation", v),
+                    &format!(
+                        "dropped variant {v} of {owner} with invalid residues (converters should not produce these)"
+                    ),
                 );
             }
             ok
