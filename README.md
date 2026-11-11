@@ -368,7 +368,7 @@ FT                   /id="<id>"
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+This project is licensed under the [Apache License 2.0](LICENSE).
 
 It produces input for [ProtGraph](https://github.com/mpc-bioinformatics/ProtGraph), a separate project by the Medizinisches Proteom-Center, Ruhr University Bochum, released under the [BSD 3-Clause License](https://github.com/mpc-bioinformatics/ProtGraph/blob/master/LICENSE).
 No ProtGraph code is included in this repository.
