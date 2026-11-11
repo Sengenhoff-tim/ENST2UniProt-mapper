@@ -204,19 +204,15 @@ Synthetic entries for unmapped transcripts have the same layout, with the ENST i
 Every event is written to the log file (`--log-file`); warnings are also shown on stderr.
 Skipped or dropped records are counted per stage, and the counts are printed at the end of the run.
 
-## Data sources
+## Data sources example (human)
 
-| Input | Directory | File (human) |
+| Input | Directory | File |
 |-------|-----------|--------------|
 | UniProt XML (`--uniprot-xml`) | [UniProt reference proteome UP000005640](https://ftp.expasy.org/databases/uniprot/current_release/knowledgebase/reference_proteomes/Eukaryota/UP000005640/) | `UP000005640_9606.xml.gz` |
 | UniProt ↔ Ensembl id mapping (`--ensembl-idmapping`) | [UniProt id mapping by organism](https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/idmapping/by_organism/) | `HUMAN_9606_idmapping.dat.gz` |
 | Ensembl protein FASTA (`--ensembl-fasta`) | [Ensembl human peptides](https://ftp.ensembl.org/pub/current_fasta/homo_sapiens/pep/) | `Homo_sapiens.GRCh38.pep.all.fa.gz` (not `abinitio`) |
 
 All three are read as downloaded; `.gz` files are decompressed transparently.
-
-> [!TIP]
-> **Recommended setup (human):** the three files from the table, without the API fallbacks.
-> Use an organism-specific UniProt XML, not `uniprot_sprot.xml.gz`: every entry of the XML is written to the output, and Swiss-Prot covers all species.
 
 ## Workflow
 
