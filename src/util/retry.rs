@@ -52,7 +52,7 @@ where
             Ok(value) => return Ok(value),
             Err(err) if attempt < config.max_attempts => {
                 let backoff_ms = config.backoff_base_ms * 2u64.pow(attempt - 1);
-                eprintln!(
+                println!(
                     "Warning: {} failed (attempt {}/{}), retrying in {}ms: {:?}",
                     description, attempt, config.max_attempts, backoff_ms, err
                 );

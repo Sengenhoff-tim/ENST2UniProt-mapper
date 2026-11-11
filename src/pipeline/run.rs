@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{self, Write};
+use std::io::Write;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use tracing::info;
+use tracing::{info, warn};
 
 //use crate::ebi::EBI_MAX_REQUESTS_PER_SECOND;
 use crate::parsing::{parse_accession_list, parse_idmapping, parse_sample_variants};
@@ -24,11 +24,11 @@ use super::{
 
 /// Everything `run` needs, as resolved from the command line.
 pub(crate) struct RunOptions {
-    pub(crate) ensure_accessions: PathBuf,
+    pub(crate) ensure_accessions: Option<PathBuf>,
     pub(crate) sample_variants: Option<PathBuf>,
-    pub(crate) ensembl_idmapping: PathBuf,
+    pub(crate) ensembl_idmapping: Option<PathBuf>,
     pub(crate) exclude_accessions: Option<PathBuf>,
-    pub(crate) output: Option<PathBuf>,
+    pub(crate) output: PathBuf,
     /// Local UniProt XML (optionally gzipped); primary source of entries.
     pub(crate) uniprot_xml: Option<PathBuf>,
     /// Query the UniProt API for accessions missing from `uniprot_xml`.
@@ -46,24 +46,27 @@ pub(crate) struct RunOptions {
 
 pub(crate) async fn run(opts: RunOptions) -> Result<()> {
     let retry_config = &opts.retry_config;
-    let mut out: Box<dyn Write> = match opts.output.as_deref() {
-        Some(path) => Box::new(
-            File::create(path)
-                .with_context(|| format!("failed to create output file '{}'", path.display()))?,
-        ),
-        None => Box::new(io::stdout()),
-    };
+    warn_about_missing_inputs(&opts);
+    let mut out: Box<dyn Write> =
+        Box::new(File::create(&opts.output).with_context(|| {
+            format!("failed to create output file '{}'", opts.output.display())
+        })?);
 
-    // 1. Parse inputs
-    let mut accessions: Vec<UniProtCanonId> = parse_accession_list(&opts.ensure_accessions)?;
+    // 1. Parse inputs; a missing input counts as empty
+    let mut accessions: Vec<UniProtCanonId> = match &opts.ensure_accessions {
+        Some(path) => parse_accession_list(path)?,
+        None => Vec::new(),
+    };
     let global_sample_variants: HashMap<EnsemblId, Vec<Variant>> = match &opts.sample_variants {
         Some(path) => parse_sample_variants(path)?,
         None => HashMap::new(),
     };
 
     // 2. Parse id mapping (EnsemblId -> UniProtCanonId) and extend accessions
-    let id_mapping: HashMap<EnsemblId, Vec<UniProtCanonId>> =
-        parse_idmapping(&opts.ensembl_idmapping)?;
+    let id_mapping: HashMap<EnsemblId, Vec<UniProtCanonId>> = match &opts.ensembl_idmapping {
+        Some(path) => parse_idmapping(path)?,
+        None => HashMap::new(),
+    };
     extend_with_mapped_accessions(&mut accessions, global_sample_variants.keys(), &id_mapping);
 
     // The exclude list applies to both the ensured accessions and the XML file.
@@ -127,6 +130,29 @@ pub(crate) async fn run(opts: RunOptions) -> Result<()> {
         retry_config,
     )
     .await
+}
+
+/// Warns once per missing input, so a run that writes little or nothing
+/// explains why. Missing inputs are not errors: each simply counts as empty.
+fn warn_about_missing_inputs(opts: &RunOptions) {
+    if opts.ensure_accessions.is_none() {
+        warn!("no --ensure-accessions given: only entries of the UniProt XML are written");
+    }
+    if opts.ensembl_idmapping.is_none() {
+        warn!("no --ensembl-idmapping given: no accessions are derived from sample-variant ENSTs");
+    }
+    match (&opts.uniprot_xml, opts.uniprot_api_fallback) {
+        (None, false) => warn!(
+            "no --uniprot-xml or --uniprot-api-fallback given: no UniProt entries are written"
+        ),
+        (None, true) => {
+            warn!("no --uniprot-xml given: all UniProt entries are fetched from the UniProt API")
+        }
+        (Some(_), _) => {}
+    }
+    if opts.sample_variants.is_none() {
+        warn!("no --sample-variants given: only UniProt variants are written");
+    }
 }
 
 #[cfg(test)]

@@ -20,7 +20,7 @@ async fn run_offline() -> Vec<String> {
         minimal_entry_xml("P77777", ""),
     ]);
     let opts = RunOptions {
-        ensure_accessions: path("acc.txt", "P00000\n"),
+        ensure_accessions: Some(path("acc.txt", "P00000\n")),
         sample_variants: Some(path(
             "variants.txt",
             "ENST00000000002.1\t3E>3K\n\
@@ -29,12 +29,14 @@ async fn run_offline() -> Vec<String> {
                  ENST00000000040.1\t1M>1V\n\
                  ENST00000000050.1\t1M>1V\n",
         )),
-        ensembl_idmapping: path(
-            "idmapping.tsv",
-            "P99999-2\tENST00000000002.1\nP77777\tENST00000000030.1\nP66666\tENST00000000040.1\n",
-        ),
+        ensembl_idmapping: Some(path(
+            "idmapping.dat",
+            "P99999-2\tEnsembl_TRS\tENST00000000002.1\n\
+             P77777\tEnsembl_TRS\tENST00000000030.1\n\
+             P66666\tEnsembl_TRS\tENST00000000040.1\n",
+        )),
         exclude_accessions: Some(path("omit.txt", "P77777\n")),
-        output: Some(dir.path().join("out.txt")),
+        output: dir.path().join("out.txt"),
         uniprot_xml: Some(path("uniprot.xml", &xml)),
         uniprot_api_fallback: false,
         ensembl_fasta: Some(path(
@@ -45,7 +47,7 @@ async fn run_offline() -> Vec<String> {
         retry_config: RetryConfig::default(),
         uniprot_variants_enabled: true,
     };
-    let output_path = opts.output.clone().unwrap();
+    let output_path = opts.output.clone();
 
     run(opts).await.unwrap();
 
@@ -71,4 +73,56 @@ async fn builds_xml_entries_then_ensembl_entries_and_honours_the_omit_list() {
             "ENST00000000040",
         ]
     );
+}
+
+/// `RunOptions` with every input missing, writing to `output`.
+fn no_inputs(output: std::path::PathBuf) -> RunOptions {
+    RunOptions {
+        ensure_accessions: None,
+        sample_variants: None,
+        ensembl_idmapping: None,
+        exclude_accessions: None,
+        output,
+        uniprot_xml: None,
+        uniprot_api_fallback: false,
+        ensembl_fasta: None,
+        ensembl_api_fallback: false,
+        retry_config: RetryConfig::default(),
+        uniprot_variants_enabled: true,
+    }
+}
+
+#[tokio::test]
+async fn without_inputs_an_empty_file_is_written() {
+    let dir = tempfile::tempdir().unwrap();
+    let output = dir.path().join("out.txt");
+
+    run(no_inputs(output.clone())).await.unwrap();
+
+    assert_eq!(std::fs::read_to_string(output).unwrap(), "");
+}
+
+#[tokio::test]
+async fn without_an_id_mapping_the_xml_entries_are_still_written() {
+    let dir = tempfile::tempdir().unwrap();
+    let xml = uniprot_xml(&[
+        minimal_entry_xml("P99999", ""),
+        minimal_entry_xml("P88888", ""),
+    ]);
+    let output = dir.path().join("out.txt");
+    let opts = RunOptions {
+        uniprot_xml: Some(write_file(&dir, "uniprot.xml", &xml)),
+        ensure_accessions: Some(write_file(&dir, "acc.txt", "P99999\n")),
+        ..no_inputs(output.clone())
+    };
+
+    run(opts).await.unwrap();
+
+    let out = std::fs::read_to_string(output).unwrap();
+    let ids: Vec<&str> = out
+        .lines()
+        .filter_map(|l| l.strip_prefix("ID   "))
+        .map(|l| l.split_whitespace().next().unwrap())
+        .collect();
+    assert_eq!(ids, ["P99999", "P88888"]);
 }

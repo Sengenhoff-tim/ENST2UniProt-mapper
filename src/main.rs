@@ -1,9 +1,9 @@
 // Warnings and skipped/malformed records are logged via `tracing`, writing
-// to both stderr and the log file given via `--log-file` (see
+// to both stdout and the log file given via `--log-file` (see
 // `init_logging` below). The workflow itself is described in `pipeline`.
 //
 // Usage: enst2uniprot-mapper --ensure-accessions <accessions.txt>
-//          --ensembl-idmapping <idmapping.tsv> --uniprot-xml <uniprot.xml[.gz]>
+//          --ensembl-idmapping <idmapping.dat[.gz]> --uniprot-xml <uniprot.xml[.gz]>
 //          [--ensembl-fasta <pep.fa[.gz]>] [--sample-variants <variants.txt>]
 //          [--output <out.txt>] [--uniprot-api-fallback] [--ensembl-api-fallback]
 
@@ -32,7 +32,7 @@ use util::{RejectionCounter, RetryConfig};
 
 /// Sets up `tracing` to write every event to `log_path` (for a
 /// persistent, traceable record), every `warn!`/`error!` (and above)
-/// to stderr (for live progress), and to count rejections in `rejections`.
+/// to stdout (for live progress), and to count rejections in `rejections`.
 ///
 /// Returns the `tracing-appender` worker guard, which must be kept alive
 /// for the duration of `main` — the file writer is non-blocking and
@@ -51,15 +51,15 @@ fn init_logging(
         .with_ansi(false)
         .with_target(false);
 
-    let stderr_layer = tracing_subscriber::fmt::layer()
-        .with_writer(std::io::stderr)
+    let stdout_layer = tracing_subscriber::fmt::layer()
+        .with_writer(std::io::stdout)
         .with_ansi(true)
         .with_target(false)
         .with_filter(tracing_subscriber::filter::LevelFilter::WARN);
 
     tracing_subscriber::registry()
         .with(file_layer)
-        .with(stderr_layer)
+        .with(stdout_layer)
         .with(rejections)
         .try_init()
         .context("failed to initialize tracing subscriber")?;
@@ -70,9 +70,6 @@ fn init_logging(
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Cli::parse();
-    if args.uniprot_xml.is_none() && !args.uniprot_api_fallback {
-        anyhow::bail!("no UniProt source: pass --uniprot-xml and/or --uniprot-api-fallback");
-    }
     let retry_config = RetryConfig {
         timeout: Duration::from_secs(args.api_timeout_secs),
         max_attempts: args.api_max_attempts,

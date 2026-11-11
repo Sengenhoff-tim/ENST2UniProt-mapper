@@ -49,27 +49,31 @@ enst2uniprot-mapper \
 
 ### Arguments
 
-<details>
-<summary>Required arguments</summary>
+Only `--output` is required.
+Every input is optional: a missing input counts as empty, and the run prints a warning for it.
+Without any input, an empty output file is written.
 
-| Argument | Description |
-|----------|-------------|
-| `--ensure-accessions <FILE>` | UniProt accessions to ensure in the output, one per line, in addition to every entry of the UniProt XML |
-| `--ensembl-idmapping <FILE>` | UniProt id mapping file; links sample-variant ENSTs to UniProt accessions |
-| `--uniprot-xml <FILE>` | Local UniProt XML (`.xml` or `.xml.gz`). Required unless `--uniprot-api-fallback` is set |
+<details>
+<summary>Output</summary>
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `--output <FILE>` | required | Output flat file |
+| `--log-file <FILE>` | `exceptions.log` | Run log: every event, including skipped and malformed input records |
 
 </details>
 
 <details>
-<summary>Optional inputs</summary>
+<summary>Inputs</summary>
 
-| Argument | Default | Description |
-|----------|---------|-------------|
-| `--sample-variants <FILE>` | none | Sample variants per ENST. Without it, only UniProt variants are included |
-| `--exclude-accessions <FILE>` | none | Canonical accessions to leave out, one per line. Applies to the ensured accessions and to the XML entries |
-| `--ensembl-fasta <FILE>` | none | Local Ensembl protein FASTA (`.fa` or `.fa.gz`), source of sequences for synthetic entries |
-| `--output <FILE>` | stdout | Output flat file |
-| `--log-file <FILE>` | `exceptions.log` | Run log: every event, including skipped and malformed input records |
+| Argument | Description | If omitted |
+|----------|-------------|------------|
+| `--ensure-accessions <FILE>` | UniProt accessions to ensure in the output, one per line, in addition to every entry of the UniProt XML | only the XML entries are written |
+| `--ensembl-idmapping <FILE>` | UniProt id mapping file; links sample-variant ENSTs to UniProt accessions | no accessions are derived from sample-variant ENSTs |
+| `--uniprot-xml <FILE>` | Local UniProt XML (`.xml` or `.xml.gz`) | UniProt entries come only from `--uniprot-api-fallback`, for the ensured accessions |
+| `--sample-variants <FILE>` | Sample variants per ENST | only UniProt variants are written |
+| `--exclude-accessions <FILE>` | Canonical accessions to leave out, one per line. Applies to the ensured accessions and to the XML entries | nothing is excluded |
+| `--ensembl-fasta <FILE>` | Local Ensembl protein FASTA (`.fa` or `.fa.gz`), source of sequences for synthetic entries | sequences come only from `--ensembl-api-fallback` |
 
 </details>
 
@@ -201,7 +205,8 @@ Synthetic entries for unmapped transcripts have the same layout, with the ENST i
 
 ### Logging
 
-Every event is written to the log file (`--log-file`); warnings are also shown on stderr.
+Every event is written to the log file (`--log-file`); warnings and progress are also shown on stdout.
+Fatal errors (e.g. an input file that cannot be read) end the run with a non-zero exit code and are printed to stderr.
 Skipped or dropped records are counted per stage, and the counts are printed at the end of the run.
 
 ## Data sources example (human)

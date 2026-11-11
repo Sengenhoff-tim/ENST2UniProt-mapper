@@ -78,16 +78,18 @@ pub(super) async fn process_entries(
         while let Some((canonical_id, result)) = pending.remove(&next) {
             write_entry_result(out, &mut consumed_ensts, &canonical_id, result)?;
             next += 1;
-            eprint!(
+            print!(
                 "\rProcessed entry {}/{}: {}",
                 next,
                 total,
                 canonical_id.as_str()
             );
-            io::stderr().flush().ok();
+            io::stdout().flush().ok();
         }
     }
-    eprintln!();
+    if total > 0 {
+        println!();
+    }
 
     Ok(consumed_ensts)
 }

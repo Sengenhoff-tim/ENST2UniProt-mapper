@@ -13,12 +13,14 @@ pub(crate) struct Cli {
     /// entry of --uniprot-xml. Those not in the XML are fetched via
     /// --uniprot-api-fallback if enabled, and logged otherwise.
     #[arg(long, value_name = "FILE")]
-    pub(crate) ensure_accessions: PathBuf,
+    pub(crate) ensure_accessions: Option<PathBuf>,
 
-    /// UniProt/Ensembl id mapping file, used to extend --ensure-accessions
-    /// with the accessions that the ENSTs of --sample-variants map to.
+    /// UniProt id mapping file as downloaded (e.g. `HUMAN_9606_idmapping.dat.gz`;
+    /// `.gz` is decompressed transparently). Its `Ensembl_TRS` lines link ENSTs to
+    /// UniProt accessions, used to extend --ensure-accessions with the accessions
+    /// that the ENSTs of --sample-variants map to. If omitted, nothing is mapped.
     #[arg(long, value_name = "FILE")]
-    pub(crate) ensembl_idmapping: PathBuf,
+    pub(crate) ensembl_idmapping: Option<PathBuf>,
 
     /// UniProt canonical accessions to exclude from the output, one per line.
     /// Applies to --ensure-accessions (after the id-mapping extension) and to
@@ -32,9 +34,9 @@ pub(crate) struct Cli {
     #[arg(long, value_name = "FILE")]
     pub(crate) sample_variants: Option<PathBuf>,
 
-    /// File to write the synthetic flat-file output to. Defaults to stdout.
+    /// File to write the synthetic flat-file output to.
     #[arg(long, value_name = "FILE")]
-    pub(crate) output: Option<PathBuf>,
+    pub(crate) output: PathBuf,
 
     /// Filter EBI variants by sourceType (comma-separated, up to 2).
     /// Allowed values: uniprot, large scale study, mixed, clinvar, nci-tcga,
@@ -57,8 +59,8 @@ pub(crate) struct Cli {
 
     /// UniProt XML file (e.g. a UniProtKB download or `uniprot_sprot.xml.gz`;
     /// `.gz` is decompressed transparently). Every entry in it is processed
-    /// (except those in --exclude-accessions). Required unless
-    /// --uniprot-api-fallback is set.
+    /// (except those in --exclude-accessions). If omitted, UniProt entries come
+    /// only from --uniprot-api-fallback.
     #[arg(long, value_name = "FILE")]
     pub(crate) uniprot_xml: Option<PathBuf>,
 

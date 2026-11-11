@@ -3,13 +3,7 @@ use clap::Parser;
 use super::*;
 
 fn parse(extra: &[&str]) -> Cli {
-    let args = [
-        "enst2uniprot-mapper",
-        "--ensure-accessions",
-        "acc.txt",
-        "--ensembl-idmapping",
-        "map.tsv",
-    ];
+    let args = ["enst2uniprot-mapper", "--output", "out.txt"];
     Cli::try_parse_from(args.iter().chain(extra)).expect("valid arguments")
 }
 
@@ -58,6 +52,10 @@ fn input_files_are_optional_paths() {
 }
 
 #[test]
-fn accessions_and_idmapping_are_required() {
-    assert!(Cli::try_parse_from(["enst2uniprot-mapper", "--ensure-accessions", "a"]).is_err());
+fn only_the_output_is_required() {
+    let cli = parse(&[]);
+    assert_eq!(cli.output.to_str(), Some("out.txt"));
+    assert!(cli.ensure_accessions.is_none() && cli.ensembl_idmapping.is_none());
+    assert!(cli.uniprot_xml.is_none() && cli.sample_variants.is_none());
+    assert!(Cli::try_parse_from(["enst2uniprot-mapper"]).is_err());
 }
