@@ -1,4 +1,4 @@
-use crate::types::{EnsemblId, Sequence};
+use crate::shared_types::{EnsemblId, Sequence};
 use crate::util::{RetryConfig, with_retries};
 use anyhow::{Context, Result, anyhow};
 use std::collections::HashMap;
@@ -122,12 +122,5 @@ pub(crate) async fn fetch_ensembl_sequences(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn strip_stop_codon_truncates_at_the_first_marker() {
-        assert_eq!(strip_stop_codon("ENST1", "MAC*DE*".to_string()), "MAC");
-        assert_eq!(strip_stop_codon("ENST1", "MACDE".to_string()), "MACDE");
-    }
-}
+#[path = "tests/test_api.rs"]
+mod tests;

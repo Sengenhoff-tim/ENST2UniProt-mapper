@@ -4,7 +4,7 @@ use anyhow::{anyhow, Context, Result};
 use futures::stream::{self, StreamExt};
 use tracing::info;
 
-use crate::types::{UniProtCanonId, UniProtIsoId};
+use crate::shared_types::{UniProtCanonId, UniProtIsoId};
 use crate::util::{with_retries, RateLimiter, RetryConfig};
 
 use super::{source_type::validate_source_types, types::ProteinFeatureInfo};

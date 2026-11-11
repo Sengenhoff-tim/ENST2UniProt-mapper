@@ -14,7 +14,7 @@ mod format;
 mod isoform;
 mod parsing;
 mod pipeline;
-mod types;
+mod shared_types;
 mod uniprot;
 mod util;
 mod variant;

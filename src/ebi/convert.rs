@@ -1,4 +1,4 @@
-use crate::types::UniProtIsoId;
+use crate::shared_types::UniProtIsoId;
 use crate::variant::Variant;
 
 use super::{
