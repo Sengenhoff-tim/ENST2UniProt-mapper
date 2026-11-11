@@ -6,6 +6,3 @@
 
 # Runtime output (default --exceptions path)
 /exceptions.log
-
-# Local scratch input
-/empty.txt
