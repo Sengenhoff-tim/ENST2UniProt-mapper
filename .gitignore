@@ -1,6 +1,11 @@
+# Build output
+/target
+
+# Local Claude Code settings
 /.claude
-/Cargo.lock
-target/
-/test.txt
+
+# Runtime output (default --exceptions path)
 /exceptions.log
-.git-rewrite
+
+# Local scratch input
+/empty.txt
