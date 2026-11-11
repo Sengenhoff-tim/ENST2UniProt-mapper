@@ -6,10 +6,11 @@ use super::{
     log::{Stage, log_variant_event},
 };
 
-/// What `resolve_stop` should do. Computed from shared borrows, then applied.
+/// What `resolve` should do. Computed from shared borrows, then applied.
 enum Plan {
     Unchanged,
-    MapDel,
+    /// The replacement (`del` or empty) encodes missing sequence.
+    MapMissing(&'static str),
     Edit(Resolution),
 }
 
@@ -25,10 +26,13 @@ struct Resolution {
 }
 
 impl Variant {
-    /// Rewrites stop-codon markers (`*`) and EBI's `del` into the target encoding.
+    /// Checks the variant against `seq` and rewrites it into the target
+    /// encoding: `del` and empty replacements become missing sequence, and
+    /// stop-codon markers (`*`) are resolved against the sequence.
     /// Errors carry the full variant description, so callers can log them as-is.
-    pub(crate) fn resolve_stop(&mut self, seq: &str) -> anyhow::Result<()> {
+    pub(crate) fn resolve(&mut self, seq: &str) -> anyhow::Result<()> {
         self.check_position(seq)?;
+        self.check_reference(seq)?;
 
         let plan = match (self.aa_ref.as_deref(), self.aa_new.as_deref()) {
             (None, None) => {
@@ -36,18 +40,17 @@ impl Variant {
                 Plan::Unchanged
             }
             (None, Some(_)) => bail!("variant {}: aa_new is set but aa_ref is missing", self),
-            (Some(aa_ref), None) => self.plan_rewrite(seq, aa_ref, ""),
-            (Some(aa_ref), Some(aa_new)) => self.plan_rewrite(seq, aa_ref, aa_new),
+            (Some(aa_ref), aa_new) => self.plan_rewrite(seq, aa_ref, aa_new),
         };
 
         match plan {
             Plan::Unchanged => {}
-            Plan::MapDel => {
+            Plan::MapMissing(what) => {
                 self.aa_new = None;
                 log_variant_event(
-                    Stage::EbiNormalization,
+                    Stage::MissingSequenceMapping,
                     self,
-                    "mapped EBI 'del' replacement to missing sequence",
+                    &format!("mapped {what} replacement to missing sequence"),
                 );
             }
             Plan::Edit(res) => {
@@ -72,15 +75,51 @@ impl Variant {
             self.begin,
             seq.len()
         );
+        // A '*' in the reference stands for the stop codon, one past the last residue.
+        let has_ref_stop = self.aa_ref.as_deref().is_some_and(|r| r.contains('*'));
+        let max_end = seq.len() + usize::from(has_ref_stop);
+        ensure!(
+            self.end >= self.begin && self.end <= max_end,
+            "variant {}: end {} is outside the sequence (begin {}, length {})",
+            self,
+            self.end,
+            self.begin,
+            seq.len()
+        );
+        Ok(())
+    }
+
+    /// The reference residues (up to the first '*') must match `seq` at `begin`.
+    fn check_reference(&self, seq: &str) -> anyhow::Result<()> {
+        let Some(aa_ref) = self.aa_ref.as_deref() else {
+            return Ok(());
+        };
+        let residues = truncate_at(aa_ref, aa_ref.find('*'));
+        if residues.is_empty() {
+            return Ok(());
+        }
+        let start = self.begin - 1;
+        let actual = seq.get(start..start + residues.len());
+        ensure!(
+            actual == Some(residues),
+            "variant {}: reference {:?} does not match the sequence ({:?} at {})",
+            self,
+            residues,
+            actual.unwrap_or(&seq[start..]),
+            self.begin
+        );
         Ok(())
     }
 
     /// Works out the rewrite for the sequence fields without mutating `self`.
-    /// Covers EBI `del` mapping and stop-codon truncation.
-    fn plan_rewrite(&self, seq: &str, aa_ref: &str, aa_new: &str) -> Plan {
-        if aa_new == "del" {
-            return Plan::MapDel;
+    /// Covers missing-sequence mapping and stop-codon truncation.
+    fn plan_rewrite(&self, seq: &str, aa_ref: &str, aa_new: Option<&str>) -> Plan {
+        match aa_new {
+            Some("del") => return Plan::MapMissing("'del'"),
+            Some("") => return Plan::MapMissing("empty"),
+            _ => {}
         }
+        let aa_new = aa_new.unwrap_or("");
 
         let (ref_star, new_star) = find_stops(aa_ref, aa_new);
         if ref_star.is_none() && new_star.is_none() {
@@ -141,7 +180,7 @@ impl Variant {
         let last = seq
             .chars()
             .last()
-            .expect("resolve_stop guarantees a non-empty sequence");
+            .expect("resolve guarantees a non-empty sequence");
         Resolution {
             aa_new: Some(format!("{last}{new_trunc}")),
             begin: seq.len(),

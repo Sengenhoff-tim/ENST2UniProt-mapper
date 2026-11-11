@@ -2,13 +2,17 @@ use crate::variant::Variant;
 
 use super::log::{Stage, log_pipeline_rejection};
 
-/// Attempts to resolve a premature-stop / out-of-bounds condition for `var`
-/// against `seq`. On success, pushes `var` into `collection`; on failure,
-/// logs the variant id and error and drops the variant.
+/// Resolves `var` against `seq` (see `Variant::resolve`). On success, adds it
+/// to `collection`, merging it into an identical variant already there; on
+/// failure, logs the variant id and error and drops the variant.
 pub(super) fn try_add_variant(collection: &mut Vec<Variant>, mut var: Variant, seq: &str) {
-    match var.resolve_stop(seq) {
-        Ok(_) => collection.push(var),
-        Err(e) => log_pipeline_rejection(Stage::VariantResolution, &var.id, &e.to_string()),
+    if let Err(e) = var.resolve(seq) {
+        log_pipeline_rejection(Stage::VariantResolution, &var.id, &e.to_string());
+        return;
+    }
+    match collection.iter_mut().find(|v| **v == var) {
+        Some(existing) => existing.merge(&var),
+        None => collection.push(var),
     }
 }
 

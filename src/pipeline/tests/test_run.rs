@@ -24,7 +24,7 @@ async fn run_offline() -> Vec<String> {
         sample_variants: Some(path(
             "variants.txt",
             "ENST00000000002.1\t3E>3K\n\
-                 ENST00000000009.1\t2C>2Y\n\
+                 ENST00000000009.1\t2A>2Y\n\
                  ENST00000000030.1\t2A>2C\n\
                  ENST00000000040.1\t1M>1V\n\
                  ENST00000000050.1\t1M>1V\n",

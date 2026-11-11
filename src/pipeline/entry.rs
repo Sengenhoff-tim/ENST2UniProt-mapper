@@ -14,7 +14,7 @@ use crate::uniprot::UniProtEntry;
 use crate::variant::{JoinVariants, Variant};
 
 use super::{
-    log::{Stage, warn_pipeline_rejection},
+    log::{Stage, log_pipeline_rejection, warn_pipeline_rejection},
     variants::{retain_valid, try_add_variant},
 };
 
@@ -139,7 +139,13 @@ async fn process_entry(
     );
 
     if ctx.uniprot_variants_enabled {
-        combined_variants.join(uniprot_variants);
+        let resolved = resolve_uniprot_variants(
+            uniprot_variants,
+            &entry,
+            canonical_iso_alias.as_ref(),
+            &isoforms,
+        );
+        combined_variants.join(resolved);
     }
 
     /*
@@ -159,6 +165,35 @@ async fn process_entry(
     );
 
     Ok((line, assigned_enst))
+}
+
+/// Resolves the entry's UniProt variants against the sequence they lie on: the
+/// canonical sequence (also for the displayed isoform alias) or a
+/// reconstructed isoform. Variants on an isoform without a sequence are
+/// logged and dropped.
+fn resolve_uniprot_variants(
+    variants: Vec<Variant>,
+    entry: &UniProtEntry,
+    canonical_iso_alias: Option<&UniProtIsoId>,
+    isoforms: &HashMap<UniProtIsoId, Sequence>,
+) -> Vec<Variant> {
+    let mut resolved = Vec::new();
+    for var in variants {
+        let seq = match &var.isoform {
+            None => Some(entry.sequence()),
+            Some(iso) if Some(iso) == canonical_iso_alias => Some(entry.sequence()),
+            Some(iso) => isoforms.get(iso).map(Sequence::as_str),
+        };
+        match seq {
+            Some(seq) => try_add_variant(&mut resolved, var, seq),
+            None => log_pipeline_rejection(
+                Stage::VariantResolution,
+                &var.id,
+                &format!("variant {var}: isoform sequence is not available, variant omitted"),
+            ),
+        }
+    }
+    resolved
 }
 
 /// Routes the sample variants of every ENST cross-referenced by `entry` onto

@@ -37,7 +37,7 @@ impl JoinVariants for Vec<Variant> {
 
 impl Variant {
     /// Merge two identical variants by joining their IDs with `_`.
-    pub(super) fn merge(&mut self, other: &Variant) {
+    pub(crate) fn merge(&mut self, other: &Variant) {
         debug_assert!(self == other, "merge called on non-identical variants");
         self.id = join_ids(std::mem::take(&mut self.id), &other.id);
         log_variant_event(

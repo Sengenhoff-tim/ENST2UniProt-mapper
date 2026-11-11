@@ -28,3 +28,23 @@ fn retain_valid_drops_invalid_residues() {
     let ids: Vec<&str> = kept.iter().map(|v| v.id.as_str()).collect();
     assert_eq!(ids, ["ok"]);
 }
+
+#[test]
+fn try_add_variant_merges_duplicates_and_joins_their_ids() {
+    let mut list = Vec::new();
+    try_add_variant(&mut list, variant("a", 2, 2, Some("C"), Some("E")), "ACDE");
+    try_add_variant(&mut list, variant("b", 2, 2, Some("C"), Some("E")), "ACDE");
+    try_add_variant(&mut list, variant("c", 2, 2, Some("C"), Some("D")), "ACDE");
+    let ids: Vec<&str> = list.iter().map(|v| v.id.as_str()).collect();
+    assert_eq!(ids, ["a_b", "c"]);
+}
+
+#[test]
+fn try_add_variant_merges_variants_that_resolve_to_the_same_change() {
+    // Both are a stop gained at 2, i.e. 2..4 missing.
+    let mut list = Vec::new();
+    try_add_variant(&mut list, variant("a", 2, 2, Some("C"), Some("*")), "ACDE");
+    try_add_variant(&mut list, variant("b", 2, 3, Some("CD"), Some("*")), "ACDE");
+    assert_eq!(list.len(), 1);
+    assert_eq!(list[0].id, "a_b");
+}

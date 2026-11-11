@@ -138,3 +138,23 @@ fn failed_entries_are_skipped_without_output() {
     assert!(out.is_empty());
     assert!(consumed.is_empty());
 }
+
+#[tokio::test]
+async fn uniprot_variants_are_resolved_against_their_sequence() {
+    let id = UniProtCanonId::new("P11111");
+    let body = r#"<feature type="sequence variant" id="VAR_OK"><original>C</original><variation>W</variation><location><position position="2"/></location></feature>
+  <feature type="sequence variant" id="VAR_REF"><original>W</original><variation>C</variation><location><position position="2"/></location></feature>
+  <feature type="sequence variant" id="VAR_END"><original>Y</original><variation>W</variation><location><begin position="20"/><end position="21"/></location></feature>
+  <feature type="sequence variant" id="VAR_STOP"><original>R</original><variation>*</variation><location><position position="15"/></location></feature>
+  <feature type="sequence variant" id="VAR_ISO"><original>A</original><variation>C</variation><location sequence="P11111-3"><position position="1"/></location></feature>"#;
+    let entry = parse_entry(&minimal_entry_xml("P11111", body));
+    let (line, _) = process_entry(&id, entry, context(true)).await.unwrap();
+
+    assert!(line.contains("/id=\"VAR_OK\""));
+    // reference mismatch, end past the sequence, isoform without a sequence
+    for dropped in ["VAR_REF", "VAR_END", "VAR_ISO"] {
+        assert!(!line.contains(&format!("/id=\"{dropped}\"")), "{dropped}");
+    }
+    // the stop gained at 15 now spans to the sequence end
+    assert!(line.contains("FT   VARIANT         15..20\nFT                   /note=\"Missing\"\nFT                   /id=\"VAR_STOP\""));
+}

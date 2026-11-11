@@ -9,7 +9,7 @@ pub(crate) enum Stage {
     DuplicateReconciliation,
     VariantValidation,
     StopCodonValidation,
-    EbiNormalization,
+    MissingSequenceMapping,
     StopCodonResolution,
 }
 
@@ -19,7 +19,7 @@ impl Stage {
             Stage::DuplicateReconciliation => "DUPLICATE RECONCILIATION",
             Stage::VariantValidation => "VARIANT VALIDATION",
             Stage::StopCodonValidation => "STOP CODON VALIDATION",
-            Stage::EbiNormalization => "EBI NORMALIZATION",
+            Stage::MissingSequenceMapping => "MISSING SEQUENCE MAPPING",
             Stage::StopCodonResolution => "STOP CODON RESOLUTION",
         }
     }
