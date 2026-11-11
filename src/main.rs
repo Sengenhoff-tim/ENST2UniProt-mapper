@@ -2,7 +2,7 @@
 // to both stderr and the log file given via `--log-file` (see
 // `init_logging` below). The workflow itself is described in `pipeline`.
 //
-// Usage: protgraph-input-builder --ensure-accessions <accessions.txt>
+// Usage: enst2uniprot-mapper --ensure-accessions <accessions.txt>
 //          --ensembl-idmapping <idmapping.tsv> --uniprot-xml <uniprot.xml[.gz]>
 //          [--ensembl-fasta <pep.fa[.gz]>] [--sample-variants <variants.txt>]
 //          [--output <out.txt>] [--uniprot-api-fallback] [--ensembl-api-fallback]

@@ -1,4 +1,4 @@
-# protgraph-input-builder
+# ENST2UniProt-mapper
 
 Builds truncated UniProt flat files as input for [ProtGraph](https://github.com/mpc-bioinformatics/ProtGraph).
 
@@ -31,14 +31,14 @@ Sample-variant transcripts that no UniProt entry references get a synthetic entr
 cargo build --release
 ```
 
-The binary is written to `target/release/protgraph-input-builder`.
+The binary is written to `target/release/enst2uniprot-mapper`.
 
 ## Usage
 
 ### Minimal Example
 
 ```
-protgraph-input-builder \
+enst2uniprot-mapper \
   --ensure-accessions accessions.txt \
   --ensembl-idmapping HUMAN_9606_idmapping.dat.gz \
   --uniprot-xml UP000005640_9606.xml.gz \

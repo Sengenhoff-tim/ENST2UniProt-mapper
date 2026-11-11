@@ -224,6 +224,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "enst2uniprot-mapper"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "flate2",
+ "futures",
+ "quick-xml",
+ "reqwest",
+ "serde",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+ "url",
+]
+
+[[package]]
 name = "errno"
 version = "0.3.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -740,25 +759,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8fd00f0bb2e90d81d1044c2b32617f68fcb9fa3bb7640c23e9c748e53fb30934"
 dependencies = [
  "unicode-ident",
-]
-
-[[package]]
-name = "protgraph-input-builder"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "flate2",
- "futures",
- "quick-xml",
- "reqwest",
- "serde",
- "tempfile",
- "tokio",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
- "url",
 ]
 
 [[package]]

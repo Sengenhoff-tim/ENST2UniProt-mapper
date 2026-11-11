@@ -4,7 +4,7 @@ use super::*;
 
 fn parse(extra: &[&str]) -> Cli {
     let args = [
-        "protgraph-input-builder",
+        "enst2uniprot-mapper",
         "--ensure-accessions",
         "acc.txt",
         "--ensembl-idmapping",
@@ -59,5 +59,5 @@ fn input_files_are_optional_paths() {
 
 #[test]
 fn accessions_and_idmapping_are_required() {
-    assert!(Cli::try_parse_from(["protgraph-input-builder", "--ensure-accessions", "a"]).is_err());
+    assert!(Cli::try_parse_from(["enst2uniprot-mapper", "--ensure-accessions", "a"]).is_err());
 }

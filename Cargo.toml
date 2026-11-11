@@ -1,11 +1,11 @@
 [package]
-name = "protgraph-input-builder"
+name = "enst2uniprot-mapper"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
 description = "Builds truncated UniProt flat files as input for ProtGraph"
 license = "Apache-2.0"
-repository = "https://github.com/Sengenhoff-tim/protgraph-input-builder"
+repository = "https://github.com/Sengenhoff-tim/ENST2UniProt-mapper"
 
 [dependencies]
 # CLI and errors
