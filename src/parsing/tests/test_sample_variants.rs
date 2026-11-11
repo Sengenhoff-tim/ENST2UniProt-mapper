@@ -11,7 +11,7 @@ fn parse(content: &str) -> HashMap<EnsemblId, Vec<Variant>> {
 fn groups_variants_by_unversioned_transcript_with_indexed_ids() {
     let variants = parse("ENST1.5\t726G>726S\n  ENST1.5    10A>10C  \nENST2.1\t1M>1V\n");
     let ids: Vec<&str> = variants["ENST1"].iter().map(|v| v.id.as_str()).collect();
-    assert_eq!(ids, ["ENST1.5_0", "ENST1.5_1"]);
+    assert_eq!(ids, ["ENST1_0", "ENST1_1"]);
     assert_eq!(variants["ENST1"][0].begin, 726);
     assert_eq!(variants["ENST2"].len(), 1);
 }

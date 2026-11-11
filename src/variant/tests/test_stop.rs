@@ -47,28 +47,44 @@ fn gained_stop_keeps_residues_before_the_marker() {
 
 #[test]
 fn lost_stop_extends_from_the_last_residue() {
-    // "1*>1BB*": C-terminal extension anchored on the last residue E
-    let v = resolved(variant("v", 1, 1, Some("*"), Some("BB*")));
+    // "6*>6BB*": C-terminal extension anchored on the last residue E
+    let v = resolved(variant("v", 6, 6, Some("*"), Some("BB*")));
     assert_eq!(fields(&v), (5, 5, Some("E"), Some("EBB")));
 }
 
 #[test]
-fn stop_inside_the_reference_extends_the_span_to_the_end() {
-    // "2B*>2X": the reference ends at the stop, the span runs to the end
-    let v = resolved(variant("v", 2, 2, Some("B*"), Some("X")));
-    assert_eq!(fields(&v), (2, 5, Some("BCDE"), Some("X")));
+fn rejects_a_reference_stop_that_does_not_follow_the_last_residue() {
+    // "2B*>2X" puts the stop at 3, but the sequence continues with C
+    assert!(
+        variant("v", 2, 3, Some("B*"), Some("X"))
+            .resolve(SEQ)
+            .is_err()
+    );
+    // a reference of only '*' must sit at len + 1 = 6
+    assert!(
+        variant("v", 1, 1, Some("*"), Some("BB*"))
+            .resolve(SEQ)
+            .is_err()
+    );
+    assert!(
+        variant("v", 7, 7, Some("*"), Some("BB*"))
+            .resolve(SEQ)
+            .is_err()
+    );
 }
 
 #[test]
 fn resolved_reference_always_spans_begin_to_end() {
-    for (aa_ref, aa_new) in [
-        ("B", "*"),
-        ("B", "BB*"),
-        ("*", "BB*"),
-        ("B*", "X"),
-        ("BC", "X*Y"),
+    for (begin, aa_ref, aa_new) in [
+        (2, "B", "*"),
+        (2, "B", "BB*"),
+        (6, "*", "BB*"),
+        (5, "E*", "X"),
+        (4, "DE*", "XY*"),
+        (2, "BC", "X*Y"),
     ] {
-        let v = resolved(variant("v", 2, 2, Some(aa_ref), Some(aa_new)));
+        let end = begin + aa_ref.len() - 1;
+        let v = resolved(variant("v", begin, end, Some(aa_ref), Some(aa_new)));
         let span = v.end - v.begin + 1;
         assert_eq!(
             v.aa_ref.as_deref().map(str::len),

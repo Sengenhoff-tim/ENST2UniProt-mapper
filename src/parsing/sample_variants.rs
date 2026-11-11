@@ -60,11 +60,12 @@ pub(crate) fn parse_sample_variants(path: &Path) -> Result<HashMap<EnsemblId, Ve
             continue;
         }
 
-        // variant id is "{enst}_{idx}", idx counting this transcript's parsed variants
         let idx = variants.get(&enst_id).map_or(0, Vec::len);
 
         // e.g. "726G>726S" -> Some(Variant { .. }); "garbage!!" -> None, logged and skipped
-        let Some(variant) = to_variant(&format!("{}_{}", enst, idx), variant_string) else {
+        // e.g. "ENST00000367770.5" -> "ENST00000367770_0": unversioned, idx counting
+        // this transcript's parsed variants in file order
+        let Some(variant) = to_variant(&format!("{}_{}", enst_id, idx), variant_string) else {
             skip(format!(
                 "skipped, could not parse variant '{}' for {}",
                 variant_string, enst

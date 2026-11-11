@@ -60,7 +60,6 @@ impl Variant {
             "Missing".to_string()
         };
         lines.extend(wrap_ft_qualifier("note", &note));
-        //invalid in uniprot spec
         lines.push(format!("{}/{}=\"{}\"", FT_INDENT, "id", self.id));
         lines
     }

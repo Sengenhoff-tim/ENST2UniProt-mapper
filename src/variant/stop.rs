@@ -68,16 +68,27 @@ impl Variant {
             "variant {}: isoform sequence is empty, variant omitted",
             self
         );
+        // A '*' in the reference stands for the stop codon, which must sit one
+        // past the last residue; a reference of only '*' begins there.
+        let ref_stop = self.aa_ref.as_deref().and_then(|r| r.find('*'));
+        let max_begin = seq.len() + usize::from(ref_stop == Some(0));
         ensure!(
-            self.begin >= 1 && self.begin <= seq.len(),
+            self.begin >= 1 && self.begin <= max_begin,
             "variant {}: begin {} is outside the sequence (length {}, positions are 1-based)",
             self,
             self.begin,
             seq.len()
         );
-        // A '*' in the reference stands for the stop codon, one past the last residue.
-        let has_ref_stop = self.aa_ref.as_deref().is_some_and(|r| r.contains('*'));
-        let max_end = seq.len() + usize::from(has_ref_stop);
+        if let Some(offset) = ref_stop {
+            ensure!(
+                self.begin + offset == seq.len() + 1,
+                "variant {}: reference stop at {} does not follow the last residue (length {})",
+                self,
+                self.begin + offset,
+                seq.len()
+            );
+        }
+        let max_end = seq.len() + usize::from(ref_stop.is_some());
         ensure!(
             self.end >= self.begin && self.end <= max_end,
             "variant {}: end {} is outside the sequence (begin {}, length {})",
@@ -173,9 +184,9 @@ impl Variant {
         res
     }
 
-    /// `aa_ref` is only "*": no real reference residue exists here, so synthesize an anchor
-    /// from the isoform's last residue. E.g. seq="AAA", ref="*", new="BB*" becomes
-    /// ref="A", new="ABB", begin=end=len(seq).
+    /// `aa_ref` is only "*" (at `len + 1`): no real reference residue exists here, so
+    /// synthesize an anchor from the isoform's last residue. E.g. seq="AAA", "4*>4BB*"
+    /// becomes ref="A", new="ABB", begin=end=len(seq).
     fn anchor_on_last_residue(&self, seq: &str, new_trunc: &str) -> Resolution {
         let last = seq
             .chars()
@@ -189,8 +200,9 @@ impl Variant {
         }
     }
 
-    /// Residues precede the '*' in `aa_ref`, so the replaced span runs to the isoform's end.
-    /// E.g. seq="ABCDE", "2B*>2X" becomes ref="BCDE", new="X", span 2..5.
+    /// Residues precede the '*' in `aa_ref`, which sits at `len + 1`, so the replaced
+    /// span ends at the isoform's last residue. E.g. seq="ABCDE", "5E*>5X" becomes
+    /// ref="E", new="X", span 5..5.
     fn truncate_reference(&self, seq: &str, new_trunc: &str) -> Resolution {
         Resolution {
             aa_new: Some(new_trunc.to_owned()),
