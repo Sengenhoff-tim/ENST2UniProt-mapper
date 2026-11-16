@@ -96,8 +96,10 @@ pub(crate) struct Cli {
     #[arg(long, default_value_t = DEFAULT_TIMEOUT_SECS)]
     pub(crate) api_timeout_secs: u64,
 
-    /// Number of attempts (including the first) before a failed fetch is
-    /// treated as fatal and the program exits.
+    /// Number of attempts (including the first) per API request, 1-20. Client
+    /// errors (HTTP 4xx except 429) are not retried. A request that still
+    /// fails is logged and the run continues: its accessions or transcripts
+    /// are reported as not found.
     #[arg(long, default_value_t = DEFAULT_MAX_ATTEMPTS, value_parser = clap::value_parser!(u32).range(1..=20))]
     pub(crate) api_max_attempts: u32,
 

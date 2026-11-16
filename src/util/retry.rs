@@ -7,11 +7,13 @@ use tracing::warn;
 
 /// Default per-request timeout (connect + write + read) applied to every
 /// outgoing REST call, overridable via `--api-timeout-secs`.
-/// Generous on purpose, as an invalid fetch is irrecoverable.
+/// Generous on purpose: a request that runs out of attempts leaves its
+/// accessions or transcripts missing from the output.
 pub(crate) const DEFAULT_TIMEOUT_SECS: u64 = 30;
 
-/// Default number of attempts (including the first) before a fetch is
-/// treated as fatal, overridable via `--api-max-attempts`.
+/// Default number of attempts (including the first) per request,
+/// overridable via `--api-max-attempts`. A request that still fails is
+/// logged by the caller and the run continues.
 pub(crate) const DEFAULT_MAX_ATTEMPTS: u32 = 5;
 
 /// Default base backoff (doubled after each failed attempt), overridable
@@ -52,7 +54,8 @@ fn backoff_ms(base_ms: u64, attempt: u32) -> u64 {
         .min(MAX_BACKOFF_MS)
 }
 
-/// Bundles the retry/timeout knobs exposed on the CLI so fetch functions
+/// Bundles the retry/timeout knobs exposed on the CLI, so fetch functions
+/// take one value instead of three.
 #[derive(Clone, Copy)]
 pub(crate) struct RetryConfig {
     pub(crate) timeout: Duration,
