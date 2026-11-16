@@ -2,9 +2,9 @@ use super::*;
 use crate::test_support::{minimal_entry_xml, rich_entry_xml, uniprot_xml, write_file};
 
 /// Runs the whole pipeline offline (no API fallbacks) on:
-/// - XML: P99999 (rich: consumes ENST..01-03), P88888, P77777 (omitted)
+/// - XML: P99999 (rich: consumes ENST..01-03), P88888, P77777 (excluded)
 /// - include list: P00000 (not in the XML)
-/// - id mapping: ENST..30 -> P77777 (omitted), ENST..40 -> P66666 (nowhere)
+/// - id mapping: ENST..30 -> P77777 (excluded), ENST..40 -> P66666 (nowhere)
 /// - variants: ENST..02 (on P99999-2), ENST..09 (unmapped), ENST..30,
 ///   ENST..40, ENST..50 (unmapped, not in the FASTA)
 /// - FASTA: ENST..09, ENST..30, ENST..40
@@ -35,7 +35,7 @@ async fn run_offline() -> Vec<String> {
              P77777\tEnsembl_TRS\tENST00000000030.1\n\
              P66666\tEnsembl_TRS\tENST00000000040.1\n",
         )),
-        exclude_accessions: Some(path("omit.txt", "P77777\n")),
+        exclude_accessions: Some(path("exclude.txt", "P77777\n")),
         output: dir.path().join("out.txt"),
         uniprot_xml: Some(path("uniprot.xml", &xml)),
         uniprot_api_fallback: false,
@@ -60,15 +60,15 @@ async fn run_offline() -> Vec<String> {
 }
 
 #[tokio::test]
-async fn builds_xml_entries_then_ensembl_entries_and_honours_the_omit_list() {
+async fn builds_xml_entries_then_ensembl_entries_and_honours_the_exclude_list() {
     assert_eq!(
         run_offline().await,
         [
-            // every XML entry except the omitted P77777, in file order
+            // every XML entry except the excluded P77777, in file order
             "P99999",
             "P88888",
             // unconsumed sample transcripts with a FASTA sequence, sorted;
-            // ENST..30 maps to the omitted P77777, ENST..50 has no sequence
+            // ENST..30 maps to the excluded P77777, ENST..50 has no sequence
             "ENST00000000009",
             "ENST00000000040",
         ]

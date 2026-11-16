@@ -4,9 +4,10 @@ use crate::test_support::{
 };
 use crate::uniprot::FeatureKind;
 
-fn parse_with_omit(entries: &[String], omit: &[&str]) -> Vec<String> {
-    let omit: HashSet<UniProtCanonId> = omit.iter().map(|a| UniProtCanonId::new(*a)).collect();
-    parse_uniprot_xml(uniprot_xml(entries).as_bytes(), &omit, "test")
+fn parse_with_excluded(entries: &[String], excluded: &[&str]) -> Vec<String> {
+    let excluded: HashSet<UniProtCanonId> =
+        excluded.iter().map(|a| UniProtCanonId::new(*a)).collect();
+    parse_uniprot_xml(uniprot_xml(entries).as_bytes(), &excluded, "test")
         .unwrap()
         .into_vec()
         .into_iter()
@@ -133,15 +134,15 @@ fn unescapes_text_and_attributes() {
 }
 
 #[test]
-fn keeps_document_order_and_skips_omitted_entries() {
+fn keeps_document_order_and_skips_excluded_entries() {
     let entries = ["P3", "P1", "P2"].map(|a| minimal_entry_xml(a, ""));
-    assert_eq!(parse_with_omit(&entries, &["P1"]), ["P3", "P2"]);
+    assert_eq!(parse_with_excluded(&entries, &["P1"]), ["P3", "P2"]);
 }
 
 #[test]
-fn omit_matches_primary_accessions_only() {
+fn exclusion_matches_primary_accessions_only() {
     let entries = [rich_entry_xml("P1")];
-    assert_eq!(parse_with_omit(&entries, &["Q00000"]), ["P1"]);
+    assert_eq!(parse_with_excluded(&entries, &["Q00000"]), ["P1"]);
 }
 
 #[test]
@@ -167,7 +168,7 @@ fn skips_entries_without_sequence() {
         r#"<entry><accession>P1</accession></entry>"#.to_string(),
         minimal_entry_xml("P2", ""),
     ];
-    assert_eq!(parse_with_omit(&entries, &[]), ["P2"]);
+    assert_eq!(parse_with_excluded(&entries, &[]), ["P2"]);
 }
 
 #[test]

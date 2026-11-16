@@ -35,35 +35,35 @@ pub(super) fn extend_with_mapped_accessions<'a>(
 /// (FASTA, then API) so their variants are kept.
 ///
 /// The id mapping is assumed to be complete: an ENST is dropped (and logged)
-/// only if the mapping links it to an omitted accession. An ENST absent from
+/// only if the mapping links it to an excluded accession. An ENST absent from
 /// the mapping has no UniProt identity and always gets its Ensembl entry.
 /// Sorted for stable output.
 pub(super) fn ensembl_fallback_candidates<'a>(
     variant_ensts: impl Iterator<Item = &'a EnsemblId>,
     id_mapping: &HashMap<EnsemblId, Vec<UniProtCanonId>>,
     assigned: &HashSet<EnsemblId>,
-    omit: &HashSet<UniProtCanonId>,
+    excluded: &HashSet<UniProtCanonId>,
 ) -> Vec<EnsemblId> {
     let mut result: Vec<EnsemblId> = variant_ensts
         .filter(|enst| !assigned.contains(*enst))
         .filter(|enst| {
-            let omitted = id_mapping
+            let mapped_to = id_mapping
                 .get(*enst)
                 .into_iter()
                 .flatten()
-                .find(|id| omit.contains(*id))
+                .find(|id| excluded.contains(*id))
                 .cloned();
-            if let Some(id) = &omitted {
+            if let Some(id) = &mapped_to {
                 log_pipeline_event(
                     Stage::TranscriptMapping,
                     enst.as_str(),
                     &format!(
-                        "excluded from Ensembl fallback, mapped to omitted {}",
+                        "excluded from Ensembl fallback, mapped to excluded {}",
                         id.as_str()
                     ),
                 );
             }
-            omitted.is_none()
+            mapped_to.is_none()
         })
         .cloned()
         .collect();

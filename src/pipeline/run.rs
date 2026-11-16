@@ -72,12 +72,12 @@ pub(crate) async fn run(opts: RunOptions) -> Result<()> {
     extend_with_mapped_accessions(&mut accessions, global_sample_variants.keys(), &id_mapping);
 
     // The exclude list applies to both the ensured accessions and the XML file.
-    let omit: HashSet<UniProtCanonId> = match &opts.exclude_accessions {
+    let excluded: HashSet<UniProtCanonId> = match &opts.exclude_accessions {
         Some(path) => parse_exclude_list(path)?,
         None => HashSet::new(),
     };
-    if !omit.is_empty() {
-        accessions.retain(|id| !omit.contains(id));
+    if !excluded.is_empty() {
+        accessions.retain(|id| !excluded.contains(id));
     }
 
     // 3. Load every UniProt entry of the XML file; accessions from the list
@@ -86,7 +86,7 @@ pub(crate) async fn run(opts: RunOptions) -> Result<()> {
     //    Reading the XML is synchronous and blocks this runtime thread while
     //    it runs. That is fine: no other async work has been started yet.
     let mut uniprot_entries = match &opts.uniprot_xml {
-        Some(path) => load_uniprot_xml(path, &omit)?,
+        Some(path) => load_uniprot_xml(path, &excluded)?,
         None => UniProtEntries::default(),
     };
     let missing = uniprot_entries.missing(&accessions);
@@ -122,9 +122,13 @@ pub(crate) async fn run(opts: RunOptions) -> Result<()> {
 
     // 5. Sample-variant ENSTs not consumed by any UniProt entry → synthetic
     //    entries from the Ensembl FASTA, then the API if enabled. Nothing the
-    //    id mapping ties to an omitted accession is included.
-    let unmapped_enst_ids =
-        ensembl_fallback_candidates(sample_variants.keys(), &id_mapping, &consumed_ensts, &omit);
+    //    id mapping ties to an excluded accession is included.
+    let unmapped_enst_ids = ensembl_fallback_candidates(
+        sample_variants.keys(),
+        &id_mapping,
+        &consumed_ensts,
+        &excluded,
+    );
 
     handle_unmapped_transcripts(
         &mut *out,

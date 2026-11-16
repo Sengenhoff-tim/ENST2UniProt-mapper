@@ -77,7 +77,7 @@ pub(crate) fn rich_entry_xml(accession: &str) -> String {
     )
 }
 
-/// Parses XML `<entry>` elements (nothing omitted).
+/// Parses XML `<entry>` elements (nothing excluded).
 pub(crate) fn parse_entries(entries: &[String]) -> Vec<(UniProtCanonId, UniProtEntry)> {
     parse_uniprot_xml(uniprot_xml(entries).as_bytes(), &HashSet::new(), "test")
         .expect("test XML must parse")

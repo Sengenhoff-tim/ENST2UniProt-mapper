@@ -33,7 +33,7 @@ fn extends_accessions_in_transcript_order_without_duplicates() {
 }
 
 #[test]
-fn fallback_candidates_are_unconsumed_and_not_omitted() {
+fn fallback_candidates_are_unconsumed_and_not_excluded() {
     let id_mapping = mapping(&[
         ("ENST1", &["P1"]),
         ("ENST2", &["P2"]),
@@ -41,11 +41,11 @@ fn fallback_candidates_are_unconsumed_and_not_omitted() {
     ]);
     let variant_ensts = [enst("ENST4"), enst("ENST3"), enst("ENST2"), enst("ENST1")];
     let consumed: HashSet<EnsemblId> = [enst("ENST1")].into();
-    let omit: HashSet<UniProtCanonId> = [acc("P4")].into();
+    let excluded: HashSet<UniProtCanonId> = [acc("P4")].into();
 
     let candidates =
-        ensembl_fallback_candidates(variant_ensts.iter(), &id_mapping, &consumed, &omit);
+        ensembl_fallback_candidates(variant_ensts.iter(), &id_mapping, &consumed, &excluded);
 
-    // ENST1 consumed, ENST3 maps to omitted P4, ENST4 has no mapping and is kept.
+    // ENST1 consumed, ENST3 maps to excluded P4, ENST4 has no mapping and is kept.
     assert_eq!(strs(&candidates), ["ENST2", "ENST4"]);
 }

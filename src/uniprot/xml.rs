@@ -25,14 +25,14 @@ use super::model::{
 const STAGE: &str = "UNIPROT XML";
 
 /// Streams UniProt XML from `reader` and returns its entries in document
-/// order, except those whose primary accession is in `omit` (these are
+/// order, except those whose primary accession is in `excluded` (these are
 /// skipped without being parsed). Duplicate primary accessions keep the
 /// first occurrence.
 ///
 /// `source` names the input in log messages.
 pub(crate) fn parse_uniprot_xml<B: BufRead>(
     reader: B,
-    omit: &HashSet<UniProtCanonId>,
+    excluded: &HashSet<UniProtCanonId>,
     source: &str,
 ) -> Result<UniProtEntries> {
     let mut xml = Reader::from_reader(reader);
@@ -60,7 +60,7 @@ pub(crate) fn parse_uniprot_xml<B: BufRead>(
                 seen += 1;
                 let end = e.to_end().into_owned();
                 let position = xml.buffer_position();
-                let entry = parse_entry(&mut xml, &end, omit).with_context(|| {
+                let entry = parse_entry(&mut xml, &end, excluded).with_context(|| {
                     format!(
                         "malformed UniProt XML in {} (entry starting at byte {})",
                         source, position
@@ -103,24 +103,24 @@ pub(crate) fn parse_uniprot_xml<B: BufRead>(
 }
 
 /// Loads all entries of a local UniProt XML file (optionally gzipped),
-/// except those in `omit`.
+/// except those in `excluded`.
 pub(crate) fn load_uniprot_xml(
     path: &Path,
-    omit: &HashSet<UniProtCanonId>,
+    excluded: &HashSet<UniProtCanonId>,
 ) -> Result<UniProtEntries> {
     let reader = open_maybe_gz(path)?;
-    parse_uniprot_xml(reader, omit, &path.display().to_string())
+    parse_uniprot_xml(reader, excluded, &path.display().to_string())
         .with_context(|| format!("failed to read UniProt XML '{}'", path.display()))
 }
 
 /// Reads one `<entry>` (whose start tag has just been consumed) up to and
 /// including `</entry>`. Returns `None` if its primary accession is in
-/// `omit` (the rest of the entry is then skipped unparsed) or if the entry
+/// `excluded` (the rest of the entry is then skipped unparsed) or if the entry
 /// lacks an accession or sequence.
 fn parse_entry<B: BufRead>(
     xml: &mut Reader<B>,
     entry_end: &BytesEnd<'static>,
-    omit: &HashSet<UniProtCanonId>,
+    excluded: &HashSet<UniProtCanonId>,
 ) -> Result<Option<UniProtEntry>> {
     let mut entry = UniProtEntry::default();
     let mut buf = Vec::new();
@@ -263,7 +263,7 @@ fn parse_entry<B: BufRead>(
                     "accession" => {
                         entry.accessions.push(std::mem::take(&mut text));
                         if entry.accessions.len() == 1
-                            && omit.contains(entry.accessions[0].as_str())
+                            && excluded.contains(entry.accessions[0].as_str())
                         {
                             xml.read_to_end_into(entry_end.name(), &mut Vec::new())?;
                             return Ok(None);
