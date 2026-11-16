@@ -11,12 +11,9 @@ use crate::isoform::{EntryIsoforms, collect_and_reconstruct_isoforms};
 use crate::shared_types::{EnsemblId, Sequence, UniProtCanonId, UniProtId, UniProtIsoId};
 use crate::uniprot::UniProtEntry;
 //use crate::util::{RateLimiter, RetryConfig};
-use crate::variant::{JoinVariants, Variant};
+use crate::variant::{JoinVariants, Variant, retain_valid, try_add_variant};
 
-use super::{
-    log::{Stage, log_pipeline_rejection, warn_pipeline_rejection},
-    variants::{retain_valid, try_add_variant},
-};
+use super::log::{Stage, log_pipeline_rejection, warn_pipeline_rejection};
 
 /// Caps how many UniProt entries are processed concurrently. This only pays
 /// off once `process_entry` awaits something (e.g. EBI requests); while it

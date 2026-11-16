@@ -9,12 +9,9 @@ use crate::ensembl::{fetch_ensembl_sequences, load_ensembl_fasta};
 use crate::format::format_entry;
 use crate::shared_types::EnsemblId;
 use crate::util::RetryConfig;
-use crate::variant::Variant;
+use crate::variant::{Variant, retain_valid, try_add_variant};
 
-use super::{
-    log::{Stage, log_pipeline_event, log_pipeline_rejection},
-    variants::{retain_valid, try_add_variant},
-};
+use super::log::{Stage, log_pipeline_event, log_pipeline_rejection};
 
 /// ENSTs with no UniProt cross-reference mapping. Each one whose protein
 /// sequence is found (Ensembl FASTA, then the Ensembl API if enabled) and that

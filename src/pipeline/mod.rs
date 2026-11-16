@@ -21,6 +21,5 @@ mod input;
 mod log;
 mod run;
 mod uniprot_entries;
-mod variants;
 
 pub(crate) use run::{RunOptions, run};

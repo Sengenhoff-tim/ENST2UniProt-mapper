@@ -5,7 +5,6 @@ use tracing::{info, warn};
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum Stage {
     VariantResolution,
-    ValidationSafetyNet,
     EntryProcessing,
     TranscriptMapping,
 }
@@ -14,7 +13,6 @@ impl Stage {
     fn label(self) -> &'static str {
         match self {
             Stage::VariantResolution => "VARIANT RESOLUTION",
-            Stage::ValidationSafetyNet => "VALIDATION SAFETY NET",
             Stage::EntryProcessing => "ENTRY PROCESSING",
             Stage::TranscriptMapping => "TRANSCRIPT MAPPING",
         }

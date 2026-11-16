@@ -15,12 +15,8 @@ impl JoinVariants for Vec<Variant> {
         let mut merged = 0usize;
 
         for variant_b in variants_b {
-            match self.iter().position(|v| *v == variant_b) {
-                Some(idx) => {
-                    self[idx].merge(&variant_b);
-                    merged += 1;
-                }
-                None => self.push(variant_b),
+            if add_or_merge(self, variant_b) {
+                merged += 1;
             }
         }
 
@@ -32,6 +28,21 @@ impl JoinVariants for Vec<Variant> {
             total = self.len(),
             "LIST RECONCILIATION: joined variant lists"
         );
+    }
+}
+
+/// Adds `var` to `collection`, merging it into an identical variant already
+/// there. Returns whether it was merged.
+pub(super) fn add_or_merge(collection: &mut Vec<Variant>, var: Variant) -> bool {
+    match collection.iter_mut().find(|v| **v == var) {
+        Some(existing) => {
+            existing.merge(&var);
+            true
+        }
+        None => {
+            collection.push(var);
+            false
+        }
     }
 }
 
