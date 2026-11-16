@@ -1,5 +1,6 @@
 use crate::shared_types::UniProtIsoId;
 use crate::test_support::feature;
+use crate::test_support::{minimal_entry_xml, parse_entry};
 use crate::uniprot::FeatureKind::SequenceVariant;
 
 #[test]
@@ -48,4 +49,17 @@ fn rejects_unknown_position_and_ambiguous_variation() {
 
     let ambiguous = feature(SequenceVariant, "VAR_2", 5, 5, Some("F"), &["L", "W"]);
     assert!(ambiguous.to_natural_variant("P1").is_none());
+}
+
+#[test]
+fn entry_natural_variants_skips_unmappable_features() {
+    let entry = parse_entry(&minimal_entry_xml(
+        "P1",
+        concat!(
+            r#"<feature type="sequence variant" id="VAR_1"><original>K</original><variation>E</variation><location><position position="9"/></location></feature>"#,
+            r#"<feature type="sequence variant" id="VAR_2"><original>K</original><variation>E</variation><variation>D</variation><location><position position="9"/></location></feature>"#,
+        ),
+    ));
+    let ids: Vec<String> = entry.natural_variants().into_iter().map(|v| v.id).collect();
+    assert_eq!(ids, ["VAR_1"]);
 }

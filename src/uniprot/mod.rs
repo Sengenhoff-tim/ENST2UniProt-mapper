@@ -5,6 +5,7 @@ mod batch;
 mod entries;
 mod fetch;
 mod model;
+mod natural_variant;
 mod xml;
 
 pub(crate) use entries::{UniProtEntries, log_unresolved_accessions};

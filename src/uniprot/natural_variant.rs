@@ -1,15 +1,29 @@
+use tracing::info;
+
 use crate::shared_types::UniProtIsoId;
-use crate::uniprot::Feature;
 use crate::variant::Variant;
 
-use super::log::{Stage, log_entry_rejection};
+use super::{Feature, UniProtEntry};
+
+const STAGE: &str = "NATURAL VARIANT MAPPING";
+
+impl UniProtEntry {
+    /// The entry's natural variant (VARIANT) features as `Variant`s.
+    /// Features that can't be mapped are skipped and logged.
+    pub(crate) fn natural_variants(&self) -> Vec<Variant> {
+        let accession = self.primary_accession();
+        self.natural_variant_features()
+            .filter_map(|f| f.to_natural_variant(accession))
+            .collect()
+    }
+}
 
 impl Feature {
     /// Converts a UniProt natural variant (VARIANT) feature into a `Variant`.
     /// Returns `None` (and logs why) when the feature can't be mapped.
     ///
     /// `aa_ref == None && aa_new == None` encodes missing sequence.
-    pub(super) fn to_natural_variant(&self, accession: &str) -> Option<Variant> {
+    fn to_natural_variant(&self, accession: &str) -> Option<Variant> {
         let Some(begin) = self.begin else {
             self.log_unmapped(accession, "cannot be mapped: No position");
             return None;
@@ -53,7 +67,16 @@ impl Feature {
             .as_deref()
             .or(self.description.as_deref())
             .unwrap_or("No Identifier or Description");
-        log_entry_rejection(Stage::NaturalVariantMapping, accession, label, outcome);
+        info!(
+            stage = STAGE,
+            accession,
+            subject = label,
+            outcome,
+            rejected = true,
+            "{}: {}",
+            STAGE,
+            outcome,
+        );
     }
 }
 

@@ -5,14 +5,12 @@ use tracing::info;
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum Stage {
     IsoformReconstruction,
-    NaturalVariantMapping,
 }
 
 impl Stage {
     fn label(self) -> &'static str {
         match self {
             Stage::IsoformReconstruction => "ISOFORM RECONSTRUCTION",
-            Stage::NaturalVariantMapping => "NATURAL VARIANT MAPPING",
         }
     }
 }

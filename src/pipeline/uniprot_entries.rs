@@ -126,8 +126,8 @@ async fn process_entry(
     let EntryIsoforms {
         displayed_id: canonical_iso_alias,
         sequences: isoforms,
-        natural_variants: uniprot_variants,
     } = collect_and_reconstruct_isoforms(&entry);
+    let uniprot_variants = entry.natural_variants();
 
     let (mut combined_variants, assigned_enst) = collect_sample_variants(
         canonical_id,

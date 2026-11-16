@@ -2,32 +2,23 @@ use std::collections::HashMap;
 
 use crate::shared_types::{Sequence, UniProtIsoId};
 use crate::uniprot::{IsoformSequenceType, UniProtEntry};
-use crate::variant::Variant;
 
 use super::log::{Stage, log_entry_rejection};
 
-/// Isoform information and natural variants of one UniProt entry.
+/// Isoform information of one UniProt entry.
 pub(crate) struct EntryIsoforms {
     /// The isoform id UniProt displays as the canonical sequence (e.g.
     /// `P04637-1`), an alias for the canonical accession.
     pub(crate) displayed_id: Option<UniProtIsoId>,
     /// Sequences of the other isoforms that could be reconstructed.
     pub(crate) sequences: HashMap<UniProtIsoId, Sequence>,
-    /// The entry's natural variant (VARIANT) features.
-    pub(crate) natural_variants: Vec<Variant>,
 }
 
 /// Collect isoform IDs and reconstruct their sequences from the
-/// ALTERNATIVE PRODUCTS comment, and convert the entry's natural variant
-/// features into `Variant`s. Any isoform or variant that can't be handled is
+/// ALTERNATIVE PRODUCTS comment. Any isoform that can't be handled is
 /// skipped and logged rather than failing the whole entry.
 pub(crate) fn collect_and_reconstruct_isoforms(entry: &UniProtEntry) -> EntryIsoforms {
     let accession = entry.primary_accession();
-
-    let natural_variants: Vec<Variant> = entry
-        .natural_variant_features()
-        .filter_map(|f| f.to_natural_variant(accession))
-        .collect();
 
     let mut displayed_id: Option<UniProtIsoId> = None;
     let mut isoforms = HashMap::new();
@@ -36,7 +27,6 @@ pub(crate) fn collect_and_reconstruct_isoforms(entry: &UniProtEntry) -> EntryIso
         return EntryIsoforms {
             displayed_id,
             sequences: isoforms,
-            natural_variants,
         };
     };
 
@@ -69,7 +59,6 @@ pub(crate) fn collect_and_reconstruct_isoforms(entry: &UniProtEntry) -> EntryIso
     EntryIsoforms {
         displayed_id,
         sequences: isoforms,
-        natural_variants,
     }
 }
 
