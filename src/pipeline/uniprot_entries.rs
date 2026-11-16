@@ -131,7 +131,6 @@ async fn process_entry(
         displayed_id: canonical_iso_alias,
         sequences: isoforms,
     } = collect_and_reconstruct_isoforms(&entry);
-    let uniprot_variants = entry.natural_variants();
 
     let (mut combined_variants, assigned_enst) = collect_sample_variants(
         canonical_id,
@@ -141,9 +140,10 @@ async fn process_entry(
         &ctx.sample_variants,
     );
 
+    // Converted only when used, so unused variants are not logged as rejected.
     if ctx.uniprot_variants_enabled {
         let resolved = resolve_uniprot_variants(
-            uniprot_variants,
+            entry.natural_variants(),
             &entry,
             canonical_iso_alias.as_ref(),
             &isoforms,
