@@ -162,3 +162,20 @@ fn rejects_a_reference_that_does_not_match_the_sequence() {
             .is_err()
     );
 }
+
+#[test]
+fn deletion_over_a_reference_stop_ends_at_the_last_residue() {
+    // "5E*>5del": E plus the stop codon deleted -> E missing, no '*' left.
+    let v = resolved(variant("v", 5, 6, Some("E*"), Some("del")));
+    assert_eq!(fields(&v), (5, 5, Some("E"), None));
+    assert!(v.is_valid());
+
+    let v = resolved(variant("v", 4, 6, Some("DE*"), Some("")));
+    assert_eq!(fields(&v), (4, 5, Some("DE"), None));
+}
+
+#[test]
+fn deleting_only_the_stop_codon_is_an_error() {
+    let mut v = variant("v", 6, 6, Some("*"), Some("del"));
+    assert!(v.resolve(SEQ).is_err());
+}

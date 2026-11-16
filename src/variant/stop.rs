@@ -40,7 +40,7 @@ impl Variant {
                 Plan::Unchanged
             }
             (None, Some(_)) => bail!("variant {}: aa_new is set but aa_ref is missing", self),
-            (Some(aa_ref), aa_new) => self.plan_rewrite(seq, aa_ref, aa_new),
+            (Some(aa_ref), aa_new) => self.plan_rewrite(seq, aa_ref, aa_new)?,
         };
 
         match plan {
@@ -124,22 +124,44 @@ impl Variant {
 
     /// Works out the rewrite for the sequence fields without mutating `self`.
     /// Covers missing-sequence mapping and stop-codon truncation.
-    fn plan_rewrite(&self, seq: &str, aa_ref: &str, aa_new: Option<&str>) -> Plan {
-        match aa_new {
-            Some("del") => return Plan::MapMissing("'del'"),
-            Some("") => return Plan::MapMissing("empty"),
-            _ => {}
+    fn plan_rewrite(&self, seq: &str, aa_ref: &str, aa_new: Option<&str>) -> anyhow::Result<Plan> {
+        let ref_star = aa_ref.find('*');
+        let deletion = match aa_new {
+            Some("del") => Some("'del'"),
+            Some("") => Some("empty"),
+            _ => None,
+        };
+        if let Some(what) = deletion {
+            match ref_star {
+                // No stop in the reference: the span lies inside the sequence.
+                None => return Ok(Plan::MapMissing(what)),
+                // Only the stop codon itself is deleted: nothing of the
+                // protein is removed, and the extension is unknown.
+                Some(0) => bail!(
+                    "variant {}: {} replacement deletes only the stop codon",
+                    self,
+                    what
+                ),
+                // Residues plus the stop: handled below as a truncation to
+                // the last residue with an empty (missing) replacement.
+                Some(_) => {}
+            }
         }
-        let aa_new = aa_new.unwrap_or("");
+        let aa_new = match deletion {
+            Some(_) => "",
+            None => aa_new.unwrap_or(""),
+        };
 
-        let (ref_star, new_star) = find_stops(aa_ref, aa_new);
+        let new_star = aa_new.find('*');
         if ref_star.is_none() && new_star.is_none() {
             trace!(variant = %self, "no stop-codon markers, nothing to resolve");
-            return Plan::Unchanged;
+            return Ok(Plan::Unchanged);
         }
 
         self.log_unusual_marker(aa_ref, aa_new, ref_star, new_star);
-        Plan::Edit(self.build_resolution(seq, aa_new, ref_star, new_star))
+        Ok(Plan::Edit(
+            self.build_resolution(seq, aa_new, ref_star, new_star),
+        ))
     }
 
     fn log_unusual_marker(
@@ -173,8 +195,21 @@ impl Variant {
         let new_trunc = truncate_at(aa_new, new_star);
         let mut res = match (ref_star, new_star) {
             (Some(0), _) => self.anchor_on_last_residue(seq, new_trunc),
-            (Some(_), _) => self.truncate_reference(seq, new_trunc),
-            (None, Some(_)) => self.truncate_at_gained_stop(seq, new_trunc),
+            // Residues precede the '*' in `aa_ref`, which sits at `len + 1`, so the
+            // replaced span ends at the last residue. E.g. seq="ABCDE", "5E*>5X"
+            // becomes ref="E", new="X", span 5..5.
+            (Some(_), _) => self.extend_to_sequence_end(
+                seq,
+                new_trunc,
+                "reference stop truncated, span extended to sequence end",
+            ),
+            // `aa_new` gains a stop, so everything downstream is truncated.
+            // E.g. seq="ABCDE", "1A>1BB*" becomes ref="ABCDE", new="BB", span 1..5.
+            (None, Some(_)) => self.extend_to_sequence_end(
+                seq,
+                new_trunc,
+                "stop gained, span extended to sequence end",
+            ),
             (None, None) => unreachable!("plan_rewrite returns early when no stop is present"),
         };
 
@@ -200,26 +235,13 @@ impl Variant {
         }
     }
 
-    /// Residues precede the '*' in `aa_ref`, which sits at `len + 1`, so the replaced
-    /// span ends at the isoform's last residue. E.g. seq="ABCDE", "5E*>5X" becomes
-    /// ref="E", new="X", span 5..5.
-    fn truncate_reference(&self, seq: &str, new_trunc: &str) -> Resolution {
+    /// Replaces `begin..=len` with `new_trunc`.
+    fn extend_to_sequence_end(&self, seq: &str, new_trunc: &str, case: &'static str) -> Resolution {
         Resolution {
             aa_new: Some(new_trunc.to_owned()),
             begin: self.begin,
             end: seq.len(),
-            case: "reference stop truncated, span extended to sequence end",
-        }
-    }
-
-    /// `aa_new` gains a stop, so everything downstream of this position is truncated.
-    /// E.g. seq="ABCDE", "1A>1BB*" becomes ref="ABCDE", new="BB", span 1..5.
-    fn truncate_at_gained_stop(&self, seq: &str, new_trunc: &str) -> Resolution {
-        Resolution {
-            aa_new: Some(new_trunc.to_owned()),
-            begin: self.begin,
-            end: seq.len(),
-            case: "stop gained, span extended to sequence end",
+            case,
         }
     }
 
@@ -232,11 +254,6 @@ impl Variant {
         self.begin = res.begin;
         self.end = res.end;
     }
-}
-
-/// Byte indices of the first `*` in each field, if present.
-fn find_stops(aa_ref: &str, aa_new: &str) -> (Option<usize>, Option<usize>) {
-    (aa_ref.find('*'), aa_new.find('*'))
 }
 
 fn truncate_at(s: &str, star: Option<usize>) -> &str {
