@@ -16,11 +16,11 @@
 //!    FASTA (optionally falling back to the Ensembl REST API); emit synthetic
 //!    flat-file entries
 
-mod entry;
-mod fallback;
+mod ensembl_entries;
 mod input;
 mod log;
 mod run;
+mod uniprot_entries;
 mod variants;
 
 pub(crate) use run::{RunOptions, run};

@@ -17,9 +17,9 @@ use crate::util::RetryConfig;
 use crate::variant::Variant;
 
 use super::{
-    entry::{EntryContext, process_entries},
-    fallback::handle_unmapped_transcripts,
+    ensembl_entries::handle_unmapped_transcripts,
     input::{ensembl_fallback_candidates, extend_with_mapped_accessions, read_omit_list},
+    uniprot_entries::{EntryContext, process_entries},
 };
 
 /// Everything `run` needs, as resolved from the command line.

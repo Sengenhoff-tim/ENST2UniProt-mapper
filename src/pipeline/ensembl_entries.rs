@@ -137,5 +137,5 @@ fn write_entry(
 }
 
 #[cfg(test)]
-#[path = "tests/test_fallback.rs"]
+#[path = "tests/test_ensembl_entries.rs"]
 mod tests;

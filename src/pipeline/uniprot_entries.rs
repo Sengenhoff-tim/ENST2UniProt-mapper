@@ -299,5 +299,5 @@ async fn fetch_ebi_variants(
 }
 */
 #[cfg(test)]
-#[path = "tests/test_entry.rs"]
+#[path = "tests/test_uniprot_entries.rs"]
 mod tests;
