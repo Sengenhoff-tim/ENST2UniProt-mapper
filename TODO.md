@@ -17,11 +17,8 @@
     "async kept for EBI" comments (`MAX_CONCURRENT_ENTRIES`, `process_entries` call)
   - replace the concurrency in `process_entries` with a sequential loop
     (see the TODO comment in `pipeline/uniprot_entries.rs`)
-- [ ] **GitHub repo**
-  - rename it to ENST2UniProt-mapper, then
-    `git remote set-url origin https://github.com/Sengenhoff-tim/ENST2UniProt-mapper.git`
-  - before moving it to the shared repo: ask the supervisor who holds the
-    rights (HiWi question)
+- [ ] **GitHub repo**: before moving it to the shared repo, ask the supervisor
+  who holds the rights (HiWi question)
 - [ ] **Validate the README**
   - download sources and the reference proteome recommendation, including
     what the `_additional` files contain
