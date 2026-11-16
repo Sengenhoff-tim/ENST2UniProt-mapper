@@ -8,7 +8,9 @@ use anyhow::{Context, Result};
 use tracing::{info, warn};
 
 //use crate::ebi::EBI_MAX_REQUESTS_PER_SECOND;
-use crate::parsing::{parse_accession_list, parse_idmapping, parse_sample_variants};
+use crate::parsing::{
+    parse_accession_list, parse_exclude_list, parse_idmapping, parse_sample_variants,
+};
 use crate::shared_types::{EnsemblId, UniProtCanonId};
 use crate::uniprot::{
     UniProtEntries, fetch_uniprot_entries, load_uniprot_xml, log_unresolved_accessions,
@@ -71,7 +73,7 @@ pub(crate) async fn run(opts: RunOptions) -> Result<()> {
 
     // The exclude list applies to both the ensured accessions and the XML file.
     let omit: HashSet<UniProtCanonId> = match &opts.exclude_accessions {
-        Some(path) => parse_accession_list(path)?.into_iter().collect(),
+        Some(path) => parse_exclude_list(path)?,
         None => HashSet::new(),
     };
     if !omit.is_empty() {

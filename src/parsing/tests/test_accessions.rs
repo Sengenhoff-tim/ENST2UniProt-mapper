@@ -23,3 +23,11 @@ fn isoform_accessions_are_replaced_by_their_entry() {
     let ids: Vec<&str> = ids.iter().map(UniProtCanonId::as_str).collect();
     assert_eq!(ids, ["P04637", "P38398"]);
 }
+
+#[test]
+fn exclude_list_ignores_isoform_accessions() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write_file(&dir, "exclude.txt", "P04637-2\n  P38398 \n\n");
+    let excluded = parse_exclude_list(&path).unwrap();
+    assert_eq!(excluded, [UniProtCanonId::new("P38398")].into());
+}

@@ -24,7 +24,8 @@ pub(crate) struct Cli {
 
     /// UniProt canonical accessions to exclude from the output, one per line.
     /// Applies to --ensure-accessions (after the id-mapping extension) and to
-    /// the entries of --uniprot-xml.
+    /// the entries of --uniprot-xml. Only whole entries can be excluded:
+    /// isoform accessions (e.g. P04637-2) are logged and ignored.
     #[arg(long, value_name = "FILE")]
     pub(crate) exclude_accessions: Option<PathBuf>,
 
