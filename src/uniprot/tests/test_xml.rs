@@ -219,5 +219,8 @@ fn unknown_entities_are_an_error() {
         "<protein><recommendedName><fullName>A &nbsp; B</fullName></recommendedName></protein>",
     )]);
     let err = parse_uniprot_xml(xml.as_bytes(), &HashSet::new(), "test").unwrap_err();
-    assert!(format!("{err:#}").contains("unknown entity '&nbsp;'"), "{err:#}");
+    assert!(
+        format!("{err:#}").contains("unknown entity '&nbsp;'"),
+        "{err:#}"
+    );
 }
