@@ -4,5 +4,5 @@
 # Local Claude Code settings
 /.claude
 
-# Runtime output (default --exceptions path)
-/exceptions.log
+# Run logs (default --log-dir)
+/logs/

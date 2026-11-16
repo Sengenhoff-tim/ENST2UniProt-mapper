@@ -1,11 +1,11 @@
 // Warnings and skipped/malformed records are logged via `tracing`, writing
-// to both stdout and the log file given via `--log-file` (see
+// to both stdout and a per-run log file in `--log-dir` (see
 // `init_logging` below). The workflow itself is described in `pipeline`.
 //
 // Usage: enst2uniprot-mapper --ensure-accessions <accessions.txt>
 //          --ensembl-idmapping <idmapping.dat[.gz]> --uniprot-xml <uniprot.xml[.gz]>
 //          [--ensembl-fasta <pep.fa[.gz]>] [--sample-variants <variants.txt>]
-//          [--output <out.txt>] [--uniprot-api-fallback] [--ensembl-api-fallback]
+//          [--output <out.txt>] [--log-dir <dir>] [--uniprot-api-fallback] [--ensembl-api-fallback]
 
 mod cli;
 //mod ebi;
@@ -19,31 +19,31 @@ mod uniprot;
 mod util;
 mod variant;
 
-use std::fs::File;
-use std::path::Path;
-use std::time::Duration;
+use std::path::{Path, PathBuf};
+use std::time::{Duration, SystemTime};
 
 use anyhow::{Context, Result};
 use clap::Parser;
 use tracing_subscriber::{Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
 use cli::Cli;
-use util::{RejectionCounter, RetryConfig};
+use util::{RejectionCounter, RetryConfig, create_run_log};
 
-/// Sets up `tracing` to write every event to `log_path` (for a
-/// persistent, traceable record), every `warn!`/`error!` (and above)
-/// to stdout (for live progress), and to count rejections in `rejections`.
+/// Sets up `tracing` to write every event to a new log file in `log_dir`
+/// (for a persistent, traceable record of this run), every
+/// `warn!`/`error!` (and above) to stdout (for live progress), and to count
+/// rejections in `rejections`.
 ///
-/// Returns the `tracing-appender` worker guard, which must be kept alive
+/// Returns the log file's path and the `tracing-appender` worker guard,
+/// which must be kept alive
 /// for the duration of `main` — the file writer is non-blocking and
 /// buffers writes on a background thread; dropping the guard early can
 /// lose buffered log lines.
 fn init_logging(
-    log_path: &Path,
+    log_dir: &Path,
     rejections: RejectionCounter,
-) -> Result<tracing_appender::non_blocking::WorkerGuard> {
-    let log_file = File::create(log_path)
-        .with_context(|| format!("failed to create log file '{}'", log_path.display()))?;
+) -> Result<(PathBuf, tracing_appender::non_blocking::WorkerGuard)> {
+    let (log_file, log_path) = create_run_log(log_dir, SystemTime::now())?;
     let (non_blocking, guard) = tracing_appender::non_blocking(log_file);
 
     let file_layer = tracing_subscriber::fmt::layer()
@@ -64,7 +64,7 @@ fn init_logging(
         .try_init()
         .context("failed to initialize tracing subscriber")?;
 
-    Ok(guard)
+    Ok((log_path, guard))
 }
 
 #[tokio::main]
@@ -77,7 +77,7 @@ async fn main() -> Result<()> {
     };
 
     let rejections = RejectionCounter::default();
-    let _log_guard = init_logging(&args.log_file, rejections.clone())
+    let (log_path, _log_guard) = init_logging(&args.log_dir, rejections.clone())
         .context("unable to set up exception logging")?;
 
     let result = pipeline::run(pipeline::RunOptions {
@@ -102,7 +102,7 @@ async fn main() -> Result<()> {
         tracing::warn!(
             "{} records rejected, see '{}' for details: {}",
             rejections.total(),
-            args.log_file.display(),
+            log_path.display(),
             rejections.breakdown()
         );
     }

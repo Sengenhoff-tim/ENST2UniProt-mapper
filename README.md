@@ -59,7 +59,7 @@ Without any input, an empty output file is written.
 | Argument | Default | Description |
 |----------|---------|-------------|
 | `--output <FILE>` | required | Output flat file |
-| `--log-file <FILE>` | `exceptions.log` | Run log: every event, including skipped and malformed input records |
+| `--log-dir <DIR>` | `logs` | Directory for run logs, created if missing. Each run writes its own file named after its start time in UTC (e.g. `2026-11-16_14-03-12.log`) with every event, including skipped and malformed input records |
 
 </details>
 
@@ -212,7 +212,7 @@ Synthetic entries for unmapped transcripts have the same layout, with the ENST i
 
 ### Logging
 
-Every event is written to the log file (`--log-file`); warnings and progress are also shown on stdout.
+Every event is written to a new log file per run in `--log-dir` (default `logs/`); warnings and progress are also shown on stdout.
 Fatal errors (e.g. an input file that cannot be read) end the run with a non-zero exit code and are printed to stderr.
 Skipped or dropped records are counted per stage, and the counts are printed at the end of the run.
 

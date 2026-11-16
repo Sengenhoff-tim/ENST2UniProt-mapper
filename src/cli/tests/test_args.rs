@@ -14,7 +14,7 @@ fn defaults_keep_apis_and_ebi_off() {
     assert!(!cli.ensembl_api_fallback);
     assert!(!cli.ebi_variants);
     assert!(cli.include_uniprot_variants);
-    assert_eq!(cli.log_file.to_str(), Some("exceptions.log"));
+    assert_eq!(cli.log_dir.to_str(), Some("logs"));
     assert_eq!(cli.api_max_attempts, DEFAULT_MAX_ATTEMPTS);
 }
 

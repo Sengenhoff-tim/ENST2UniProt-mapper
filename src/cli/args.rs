@@ -84,10 +84,11 @@ pub(crate) struct Cli {
     #[arg(long, default_value_t = false, value_parser = clap::value_parser!(bool), action = clap::ArgAction::Set, num_args = 0..=1, require_equals = true, default_missing_value = "true")]
     pub(crate) ensembl_api_fallback: bool,
 
-    /// File to write the run log to: every event, including skipped and
-    /// malformed input records.
-    #[arg(long, value_name = "FILE", default_value = "exceptions.log")]
-    pub(crate) log_file: PathBuf,
+    /// Directory for run logs (created if missing). Each run writes its own
+    /// file, named after its start time in UTC (e.g. 2026-11-16_14-03-12.log),
+    /// with every event, including skipped and malformed input records.
+    #[arg(long, value_name = "DIR", default_value = "logs")]
+    pub(crate) log_dir: PathBuf,
 
     /// Per-request timeout, in seconds, for outgoing REST calls (UniProt,
     /// EBI, Ensembl). Covers connect + write + read for a single attempt;
