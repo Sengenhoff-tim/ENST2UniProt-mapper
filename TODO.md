@@ -40,18 +40,3 @@
 - [ ] Write logs to a `logs/` directory
 - [ ] Rename internal names to match the CLI terms (e.g. `omit` → `exclude` in
   `pipeline/run.rs`, `pipeline/mapping.rs`, `uniprot/xml.rs`)
-
-## Done
-
-- [x] Idmapping parser reads `HUMAN_9606_idmapping.dat.gz` as downloaded
-- [x] Variant encoding bugs, README restructured, Apache-2.0, renamed to
-  ENST2UniProt-mapper, all arguments optional except `--output`
-- [x] Committed idmapping parser, optional arguments, messages on stdout (812c789)
-- [x] `--uniprot-xml` help example now uses `UP000005640_9606.xml.gz`, like the README
-- [x] Repo restructure:
-  - `pipeline/entry.rs` → `uniprot_entries.rs`, `fallback.rs` → `ensembl_entries.rs`
-  - `try_add_variant` / `retain_valid` → `variant/collection.rs` (shares
-    `add_or_merge` with `JoinVariants`)
-  - `read_omit_list` dropped for `parse_accession_list`; `pipeline/input.rs` →
-    `mapping.rs`
-  - natural variant conversion `isoform/` → `uniprot/natural_variant.rs`
