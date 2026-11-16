@@ -202,3 +202,22 @@ fn truncated_xml_is_an_error() {
     let xml = "<uniprot><entry><accession>P1</accession>";
     assert!(parse_uniprot_xml(xml.as_bytes(), &HashSet::new(), "test").is_err());
 }
+
+#[test]
+fn resolves_character_references_and_trims_around_references() {
+    let entry = parse_entry(&minimal_entry_xml(
+        "P1",
+        "<protein><recommendedName><fullName>\n    5&#x27;-nucleotidase &lt;&#65;&gt;\n  </fullName></recommendedName></protein>",
+    ));
+    assert_eq!(entry.protein_name.as_deref(), Some("5'-nucleotidase <A>"));
+}
+
+#[test]
+fn unknown_entities_are_an_error() {
+    let xml = uniprot_xml(&[minimal_entry_xml(
+        "P1",
+        "<protein><recommendedName><fullName>A &nbsp; B</fullName></recommendedName></protein>",
+    )]);
+    let err = parse_uniprot_xml(xml.as_bytes(), &HashSet::new(), "test").unwrap_err();
+    assert!(format!("{err:#}").contains("unknown entity '&nbsp;'"), "{err:#}");
+}

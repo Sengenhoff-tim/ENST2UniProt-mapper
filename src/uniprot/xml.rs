@@ -8,8 +8,9 @@ use std::io::BufRead;
 use std::path::Path;
 
 use anyhow::{Context, Result, bail};
-use quick_xml::Reader;
-use quick_xml::events::{BytesEnd, BytesStart, Event};
+use quick_xml::escape::resolve_predefined_entity;
+use quick_xml::events::{BytesEnd, BytesRef, BytesStart, Event};
+use quick_xml::{Reader, XmlVersion};
 use tracing::{info, warn};
 
 use crate::shared_types::UniProtCanonId;
@@ -37,7 +38,9 @@ pub(crate) fn parse_uniprot_xml<B: BufRead>(
 ) -> Result<UniProtEntries> {
     let mut xml = Reader::from_reader(reader);
     xml.config_mut().expand_empty_elements = true;
-    xml.config_mut().trim_text(true);
+    // No `trim_text`: text around an entity reference (`A &amp; B`) arrives
+    // in separate events, so trimming each would drop the spaces. Element
+    // text is trimmed as a whole instead (`take_trimmed`).
 
     let mut buf = Vec::new();
     let mut entries = UniProtEntries::default();
@@ -56,7 +59,7 @@ pub(crate) fn parse_uniprot_xml<B: BufRead>(
             )
         })?;
         match event {
-            Event::Start(e) if e.local_name().as_ref() == b"entry" => {
+            Event::Start(e) if e.local_name().as_ref() == "entry" => {
                 seen += 1;
                 let end = e.to_end().into_owned();
                 let position = xml.buffer_position();
@@ -79,7 +82,7 @@ pub(crate) fn parse_uniprot_xml<B: BufRead>(
                     }
                 }
             }
-            Event::End(e) if e.local_name().as_ref() == b"uniprot" => root_closed = true,
+            Event::End(e) if e.local_name().as_ref() == "uniprot" => root_closed = true,
             Event::Eof => break,
             _ => {}
         }
@@ -143,7 +146,7 @@ fn parse_entry<B: BufRead>(
         match xml.read_event_into(&mut buf)? {
             Event::Start(e) => {
                 text.clear();
-                path.push(String::from_utf8_lossy(e.local_name().as_ref()).into_owned());
+                path.push(e.local_name().as_ref().to_string());
                 match path.join("/").as_str() {
                     "gene" => gene_count += 1,
                     "gene/name" => {
@@ -256,12 +259,13 @@ fn parse_entry<B: BufRead>(
                     _ => {}
                 }
             }
-            Event::Text(t) => text.push_str(&t.unescape()?),
+            Event::Text(t) => text.push_str(&t.xml10_content()),
+            Event::GeneralRef(r) => push_reference(&mut text, &r)?,
             Event::End(_) if path.is_empty() => break, // </entry>
             Event::End(_) => {
                 match path.join("/").as_str() {
                     "accession" => {
-                        entry.accessions.push(std::mem::take(&mut text));
+                        entry.accessions.push(take_trimmed(&mut text));
                         if entry.accessions.len() == 1
                             && excluded.contains(entry.accessions[0].as_str())
                         {
@@ -270,26 +274,26 @@ fn parse_entry<B: BufRead>(
                         }
                     }
                     "protein/recommendedName/fullName" => {
-                        entry.protein_name = Some(std::mem::take(&mut text));
+                        entry.protein_name = Some(take_trimmed(&mut text));
                     }
                     "gene/name" if capture_gene_name => {
-                        entry.gene_name = Some(std::mem::take(&mut text));
+                        entry.gene_name = Some(take_trimmed(&mut text));
                         capture_gene_name = false;
                     }
                     "comment" => in_alternative_products = false,
                     "comment/text" if in_alternative_products => {
                         if let Some(ap) = entry.alternative_products.as_mut() {
-                            ap.notes.push(std::mem::take(&mut text));
+                            ap.notes.push(take_trimmed(&mut text));
                         }
                     }
                     "comment/isoform/id" => {
                         if let Some(iso) = isoform.as_mut() {
-                            iso.ids.push(std::mem::take(&mut text));
+                            iso.ids.push(take_trimmed(&mut text));
                         }
                     }
                     "comment/isoform/name" => {
                         if let Some(iso) = isoform.as_mut() {
-                            iso.names.push(std::mem::take(&mut text));
+                            iso.names.push(take_trimmed(&mut text));
                         }
                     }
                     "comment/isoform" => {
@@ -302,12 +306,12 @@ fn parse_entry<B: BufRead>(
                     "dbReference" => entry.ensembl_refs.extend(ensembl.take()),
                     "feature/original" => {
                         if let Some(f) = feature.as_mut() {
-                            f.original = Some(std::mem::take(&mut text));
+                            f.original = Some(take_trimmed(&mut text));
                         }
                     }
                     "feature/variation" => {
                         if let Some(f) = feature.as_mut() {
-                            f.variations.push(std::mem::take(&mut text));
+                            f.variations.push(take_trimmed(&mut text));
                         }
                     }
                     "feature" => entry.features.extend(feature.take()),
@@ -351,9 +355,32 @@ fn parse_entry<B: BufRead>(
 
 fn attr(e: &BytesStart, name: &str) -> Result<Option<String>> {
     Ok(match e.try_get_attribute(name)? {
-        Some(a) => Some(a.unescape_value()?.into_owned()),
+        Some(a) => Some(a.normalized_value(XmlVersion::Implicit1_0)?.into_owned()),
         None => None,
     })
+}
+
+/// Appends the text an entity or character reference stands for, e.g.
+/// `&amp;` -> `&`, `&#x27;` -> `'`. Other entities are an error.
+fn push_reference(text: &mut String, reference: &BytesRef) -> Result<()> {
+    if let Some(c) = reference.resolve_char_ref()? {
+        text.push(c);
+        return Ok(());
+    }
+    let name = reference.xml10_content();
+    match resolve_predefined_entity(&name) {
+        Some(replacement) => text.push_str(replacement),
+        None => bail!("unknown entity '&{};'", name),
+    }
+    Ok(())
+}
+
+/// The text collected for the element that just ended, trimmed; leaves
+/// `text` empty.
+fn take_trimmed(text: &mut String) -> String {
+    let trimmed = text.trim().to_string();
+    text.clear();
+    trimmed
 }
 
 /// `<begin position="12"/>`; `None` for e.g. `<begin status="unknown"/>`.

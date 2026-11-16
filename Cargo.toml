@@ -2,7 +2,7 @@
 name = "enst2uniprot-mapper"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.86"
 description = "Builds truncated UniProt flat files as input for ProtGraph"
 license = "Apache-2.0"
 repository = "https://github.com/Sengenhoff-tim/ENST2UniProt-mapper"
@@ -20,7 +20,7 @@ url = "2.5"
 
 # Parsing and IO
 flate2 = "1.1"
-quick-xml = "0.37"
+quick-xml = "0.42"
 serde = { version = "1.0", features = ["derive"] }
 
 # Logging
