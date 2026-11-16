@@ -94,7 +94,7 @@ Without any input, an empty output file is written.
 | Argument | Default | Description |
 |----------|---------|-------------|
 | `--api-timeout-secs` | 30 | Timeout per request attempt |
-| `--api-max-attempts` | 5 | Attempts per request, including the first |
+| `--api-max-attempts` | 5 | Attempts per request, including the first (1–20); client errors (HTTP 4xx except 429) are not retried |
 | `--api-retry-backoff-ms` | 500 | Base backoff between attempts; doubles after each failed attempt |
 
 </details>
@@ -105,6 +105,13 @@ Without any input, an empty output file is written.
 <summary><code>accessions.txt</code>: UniProt accessions</summary>
 
 One accession per line. The same format is used for `--exclude-accessions`.
+
+Isoform accessions (e.g. `P04637-2`) are handled per list:
+
+- `--ensure-accessions`: replaced by their entry (`P04637`). Isoforms are
+  always written as part of their entry, never as entries of their own.
+- `--exclude-accessions`: ignored (and logged). Only whole entries can be
+  excluded.
 
 ```
 P62258

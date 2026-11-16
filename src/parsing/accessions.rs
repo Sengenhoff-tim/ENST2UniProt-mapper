@@ -10,8 +10,15 @@ use super::log::{Stage, log_line_event, log_line_rejection};
 
 /// Reads the accessions to ensure, one per line (trimmed, blank lines
 /// skipped). Isoform accessions such as `P04637-2` are replaced by their
-/// entry's accession (`P04637`): isoforms are written as part of their
-/// entry, never as entries of their own. Each replacement is logged.
+/// entry's accession (`P04637`). Each replacement is logged.
+///
+/// Why: the output has one entry per UniProt entry, and isoforms are part of
+/// it (canonical sequence, VAR_SEQ features, CC ALTERNATIVE PRODUCTS,
+/// variants as `P04637-2:<pos>`), never entries of their own. Entries are
+/// looked up by canonical primary accession, so an isoform accession would
+/// match nothing in the XML and be reported missing. Fetched from the API
+/// on its own, it would come back as a separate isoform-only entry without
+/// features, i.e. a second, incomplete entry for the same protein.
 pub(crate) fn parse_accession_list(path: &Path) -> Result<Vec<UniProtCanonId>> {
     let mut accessions = Vec::new();
     for (location, id) in read_accessions(path)? {
