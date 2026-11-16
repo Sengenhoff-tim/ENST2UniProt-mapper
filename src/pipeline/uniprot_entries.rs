@@ -38,6 +38,10 @@ pub(super) struct EntryContext {
 
 type EntryResult = Result<(String, HashSet<EnsemblId>)>;
 
+// TODO when removing EBI: `process_entry` no longer awaits anything, so the
+// concurrency here (`buffer_unordered`, the `pending` reorder map,
+// `MAX_CONCURRENT_ENTRIES`, the `Arc`s in `EntryContext`) buys nothing.
+// Replace it with a plain sequential loop.
 /// Processes all UniProt entries (up to `MAX_CONCURRENT_ENTRIES` at once)
 /// and writes one output entry each, in input order. Returns the
 /// sample-variant ENSTs they consumed. An entry that fails is logged and

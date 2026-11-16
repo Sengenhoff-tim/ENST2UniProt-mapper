@@ -2,9 +2,10 @@
 
 ## Open
 
-- [ ] **`--api-max-attempts` help text**: `src/cli/args.rs:98` still says a failed
-  fetch "is treated as fatal and the program exits". Commit 7d426a0 made REST
-  failures non-fatal: check the behaviour and fix the text.
+- [ ] **`--api-max-attempts` help text**: the help text in `src/cli/args.rs` and
+  the `DEFAULT_MAX_ATTEMPTS` / `DEFAULT_TIMEOUT_SECS` docs in `src/util/retry.rs`
+  still call a failed fetch fatal. Commit 7d426a0 made REST failures
+  non-fatal: check the behaviour and fix the text.
 - [ ] **Remove EBI from main** (branch off first to keep it), then on main:
   - remove `src/ebi/` and `//mod ebi;`
   - remove the commented-out EBI blocks in `main.rs`, `pipeline/run.rs` and
@@ -14,6 +15,8 @@
     `--include-uniprot-variants`
   - update the workflow doc in `pipeline/mod.rs` (steps 5–6) and the
     "async kept for EBI" comments (`MAX_CONCURRENT_ENTRIES`, `process_entries` call)
+  - replace the concurrency in `process_entries` with a sequential loop
+    (see the TODO comment in `pipeline/uniprot_entries.rs`)
 - [ ] **GitHub repo**
   - rename it to ENST2UniProt-mapper, then
     `git remote set-url origin https://github.com/Sengenhoff-tim/ENST2UniProt-mapper.git`
