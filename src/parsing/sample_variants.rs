@@ -9,7 +9,7 @@ use crate::variant::Variant;
 
 use super::{
     log::{Stage, log_line_event, log_line_rejection},
-    notation::{positions_match, to_variant},
+    notation::{NotationError, parse_notation},
 };
 
 /// parse a ensembl transcript mapped variant input file, returning a map of Ensembl-ID → list of variants.
@@ -26,8 +26,7 @@ pub(crate) fn parse_sample_variants(path: &Path) -> Result<HashMap<EnsemblId, Ve
             continue;
         }
         let location = format!("{}:{}", path.display(), line_no + 1);
-        let skip =
-            |outcome: String| log_line_rejection(Stage::SampleVariantParsing, &location, &outcome);
+        let skip = |outcome: String| log_line_rejection(Stage::SampleVariants, &location, &outcome);
 
         let mut parts = line.split_whitespace();
 
@@ -35,12 +34,12 @@ pub(crate) fn parse_sample_variants(path: &Path) -> Result<HashMap<EnsemblId, Ve
         let Some(enst) = parts.next() else {
             continue;
         };
-        // e.g. "ENST00000367770.5" starts with "ENST" -> ok; "NM_001256789.1" -> not ok, logged and skipped
-        if !enst.starts_with("ENST") {
+        // e.g. "ENST00000367770.5" -> ok; "NM_001256789.1" -> not ok, logged and skipped
+        let enst_id = EnsemblId::from_versioned(enst);
+        if !enst_id.is_transcript() {
             skip(format!("skipped, '{}' does not look like an ENST id", enst));
             continue;
         }
-        let enst_id = EnsemblId::from_versioned(enst);
 
         // e.g. "ENST00000367770.5    726G>726S" -> "726G>726S"
         let Some(variant_string) = parts.next() else {
@@ -50,28 +49,25 @@ pub(crate) fn parse_sample_variants(path: &Path) -> Result<HashMap<EnsemblId, Ve
             continue;
         };
 
-        // e.g. "726G>726S" -> Some(true); "726G>731S" -> Some(false), logged and skipped
-        if positions_match(variant_string) == Some(false) {
-            skip(format!(
-                "skipped, position mismatch in variant '{}' for {}",
-                variant_string, enst
-            ));
-            rejected.insert(enst_id);
-            continue;
-        }
-
         let idx = variants.get(&enst_id).map_or(0, Vec::len);
 
-        // e.g. "726G>726S" -> Some(Variant { .. }); "garbage!!" -> None, logged and skipped
+        // e.g. "726G>726S" -> Ok(Variant { .. }); "726G>731S" or "garbage!!" -> logged and skipped
         // e.g. "ENST00000367770.5" -> "ENST00000367770_0": unversioned, idx counting
         // this transcript's parsed variants in file order
-        let Some(variant) = to_variant(&format!("{}_{}", enst_id, idx), variant_string) else {
-            skip(format!(
-                "skipped, could not parse variant '{}' for {}",
-                variant_string, enst
-            ));
-            rejected.insert(enst_id);
-            continue;
+        let variant = match parse_notation(&format!("{}_{}", enst_id, idx), variant_string) {
+            Ok(variant) => variant,
+            Err(e) => {
+                let reason = match e {
+                    NotationError::PositionMismatch => "position mismatch in",
+                    NotationError::Malformed => "could not parse",
+                };
+                skip(format!(
+                    "skipped, {} variant '{}' for {}",
+                    reason, variant_string, enst
+                ));
+                rejected.insert(enst_id);
+                continue;
+            }
         };
 
         // Only now create the transcript's list: transcripts without a single
@@ -81,7 +77,7 @@ pub(crate) fn parse_sample_variants(path: &Path) -> Result<HashMap<EnsemblId, Ve
 
     for enst_id in rejected.iter().filter(|id| !variants.contains_key(*id)) {
         log_line_event(
-            Stage::SampleVariantParsing,
+            Stage::SampleVariants,
             &path.display().to_string(),
             &format!(
                 "left out {}: none of its variant lines could be parsed",

@@ -12,25 +12,33 @@ fn split_position_and_residues(s: &str) -> Option<(usize, &str)> {
     Some((pos, residues))
 }
 
-/// Checks that the position on the left of `>` matches the position on the right.
-/// e.g. "726G>726S" -> Some(true) (positions match: 726 == 726)
-/// e.g. "726G>731S" -> Some(false) (positions differ: 726 != 731)
-/// e.g. "garbage!!" -> None (couldn't parse either side)
-pub(super) fn positions_match(variant_str: &str) -> Option<bool> {
-    let (left, right) = variant_str.split_once('>')?;
-    let (begin, _) = split_position_and_residues(left)?;
-    let (rpos, _) = split_position_and_residues(right)?;
-    Some(begin == rpos)
+/// Why a variant string could not be parsed.
+#[derive(Debug, PartialEq, Eq)]
+pub(super) enum NotationError {
+    /// Not of the form `<pos><ref_aa>><pos><alt_aa>`.
+    Malformed,
+    /// The positions left and right of `>` differ, e.g. "726G>731S".
+    PositionMismatch,
 }
 
 /// Parses a protein variant string of the form `<pos><ref_aa>><pos><alt_aa>`.
-/// e.g. "726G>726S" -> Some(Variant { begin: 726, end: 726, aa_ref: "G", aa_new: "S" })
-pub(super) fn to_variant(id: &str, variant_str: &str) -> Option<Variant> {
-    let (left, right) = variant_str.split_once('>')?;
-    let (begin, raw_wt) = split_position_and_residues(left)?;
-    let (_rpos, raw_mt) = split_position_and_residues(right)?;
-    let end = begin + raw_wt.len().checked_sub(1)?;
-    Some(Variant {
+/// e.g. "726G>726S" -> Ok(Variant { begin: 726, end: 726, aa_ref: "G", aa_new: "S" })
+/// e.g. "726G>731S" -> Err(PositionMismatch); "garbage!!" -> Err(Malformed)
+pub(super) fn parse_notation(id: &str, variant_str: &str) -> Result<Variant, NotationError> {
+    let (left, right) = variant_str
+        .split_once('>')
+        .ok_or(NotationError::Malformed)?;
+    let (begin, raw_wt) = split_position_and_residues(left).ok_or(NotationError::Malformed)?;
+    let (rpos, raw_mt) = split_position_and_residues(right).ok_or(NotationError::Malformed)?;
+    if begin != rpos {
+        return Err(NotationError::PositionMismatch);
+    }
+    let end = begin
+        + raw_wt
+            .len()
+            .checked_sub(1)
+            .ok_or(NotationError::Malformed)?;
+    Ok(Variant {
         isoform: None,
         id: id.to_string(),
         begin,

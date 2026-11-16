@@ -8,15 +8,8 @@ fn splits_position_from_residues() {
 }
 
 #[test]
-fn positions_match_compares_both_sides() {
-    assert_eq!(positions_match("726G>726S"), Some(true));
-    assert_eq!(positions_match("726G>731S"), Some(false));
-    assert_eq!(positions_match("garbage!!"), None);
-}
-
-#[test]
 fn single_residue_substitution() {
-    let v = to_variant("ENST1_0", "726G>726S").unwrap();
+    let v = parse_notation("ENST1_0", "726G>726S").unwrap();
     assert_eq!((v.id.as_str(), v.begin, v.end), ("ENST1_0", 726, 726));
     assert_eq!(
         (v.aa_ref.as_deref(), v.aa_new.as_deref()),
@@ -27,7 +20,7 @@ fn single_residue_substitution() {
 
 #[test]
 fn multi_residue_reference_spans_its_length() {
-    let v = to_variant("x", "2AA>2B").unwrap();
+    let v = parse_notation("x", "2AA>2B").unwrap();
     assert_eq!((v.begin, v.end), (2, 3));
     assert_eq!(
         (v.aa_ref.as_deref(), v.aa_new.as_deref()),
@@ -37,7 +30,7 @@ fn multi_residue_reference_spans_its_length() {
 
 #[test]
 fn stop_markers_are_kept_verbatim() {
-    let v = to_variant("x", "3C>3*").unwrap();
+    let v = parse_notation("x", "3C>3*").unwrap();
     assert_eq!(
         (v.aa_ref.as_deref(), v.aa_new.as_deref()),
         (Some("C"), Some("*"))
@@ -46,7 +39,17 @@ fn stop_markers_are_kept_verbatim() {
 
 #[test]
 fn rejects_malformed_notation() {
-    assert!(to_variant("x", "726G").is_none(), "no '>'");
-    assert!(to_variant("x", "G>S").is_none(), "no position");
-    assert!(to_variant("x", "726>726S").is_none(), "empty reference");
+    let err = |s| parse_notation("x", s).unwrap_err();
+    assert_eq!(err("726G"), NotationError::Malformed, "no '>'");
+    assert_eq!(err("G>S"), NotationError::Malformed, "no position");
+    assert_eq!(err("726>726S"), NotationError::Malformed, "empty reference");
+    assert_eq!(err("garbage!!"), NotationError::Malformed);
+}
+
+#[test]
+fn rejects_differing_positions() {
+    assert_eq!(
+        parse_notation("x", "726G>731S").unwrap_err(),
+        NotationError::PositionMismatch
+    );
 }

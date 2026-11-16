@@ -38,7 +38,7 @@ pub(crate) fn parse_idmapping(path: &Path) -> Result<HashMap<EnsemblId, Vec<UniP
             (parts.next(), parts.next(), parts.next())
         else {
             log_line_rejection(
-                Stage::IdMappingParsing,
+                Stage::IdMapping,
                 &location(),
                 &format!("skipped, expected 3 tab-separated columns in '{}'", line),
             );
@@ -56,7 +56,7 @@ pub(crate) fn parse_idmapping(path: &Path) -> Result<HashMap<EnsemblId, Vec<UniP
 
         if !enst_id.is_transcript() {
             log_line_rejection(
-                Stage::IdMappingParsing,
+                Stage::IdMapping,
                 &location(),
                 &format!("skipped, '{}' does not look like an ENST id", id_raw),
             );

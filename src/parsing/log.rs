@@ -4,15 +4,17 @@ use tracing::info;
 /// of every input log message.
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum Stage {
-    IdMappingParsing,
-    SampleVariantParsing,
+    AccessionList,
+    IdMapping,
+    SampleVariants,
 }
 
 impl Stage {
     fn label(self) -> &'static str {
         match self {
-            Stage::IdMappingParsing => "ID MAPPING PARSING",
-            Stage::SampleVariantParsing => "SAMPLE VARIANT PARSING",
+            Stage::AccessionList => "ACCESSION LIST PARSING",
+            Stage::IdMapping => "ID MAPPING PARSING",
+            Stage::SampleVariants => "SAMPLE VARIANT PARSING",
         }
     }
 }

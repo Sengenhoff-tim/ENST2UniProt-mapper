@@ -14,3 +14,12 @@ fn reads_one_accession_per_line_trimmed_skipping_blanks() {
 fn missing_file_is_an_error() {
     assert!(parse_accession_list(std::path::Path::new("/nonexistent/acc.txt")).is_err());
 }
+
+#[test]
+fn isoform_accessions_are_replaced_by_their_entry() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write_file(&dir, "acc.txt", "P04637-2\nP38398\n");
+    let ids = parse_accession_list(&path).unwrap();
+    let ids: Vec<&str> = ids.iter().map(UniProtCanonId::as_str).collect();
+    assert_eq!(ids, ["P04637", "P38398"]);
+}
