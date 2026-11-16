@@ -7,10 +7,11 @@ updates:
       interval: weekly
     open-pull-requests-limit: 5
     groups:
-      # Semver-compatible updates in one PR; breaking ones (e.g. quick-xml,
-      # reqwest) still get their own PR each.
-      cargo-minor-and-patch:
-        update-types: [minor, patch]
+      # Only patch updates are grouped. Minor updates get their own PR each,
+      # because for 0.x crates (quick-xml, reqwest, futures, tracing*) a
+      # minor bump such as 0.42 -> 0.43 can be breaking.
+      cargo-patch:
+        update-types: [patch]
 
   - package-ecosystem: github-actions
     directory: /
