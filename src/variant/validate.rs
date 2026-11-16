@@ -3,35 +3,10 @@ use super::{
     log::{Stage, log_variant_event},
 };
 
+/// One-letter amino acid codes, including the ambiguity and rare codes
+/// (B, J, O, U, X, Z): together exactly the uppercase ASCII letters.
 fn is_valid_aa(c: char) -> bool {
-    matches!(
-        c,
-        'G' | 'A'
-            | 'S'
-            | 'P'
-            | 'V'
-            | 'T'
-            | 'C'
-            | 'L'
-            | 'I'
-            | 'N'
-            | 'D'
-            | 'Q'
-            | 'K'
-            | 'E'
-            | 'M'
-            | 'H'
-            | 'F'
-            | 'U'
-            | 'R'
-            | 'Y'
-            | 'W'
-            | 'O'
-            | 'J'
-            | 'X'
-            | 'Z'
-            | 'B'
-    )
+    c.is_ascii_uppercase()
 }
 
 impl Variant {
