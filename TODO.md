@@ -24,9 +24,6 @@
     what the `_additional` files contain
   - how the diagram and the `<details>` blocks render on GitHub
   - wording
-- [ ] **`--uniprot-xml` help example**: `src/cli/args.rs:60` uses
-  `uniprot_sprot.xml.gz`. Switch to `UP000005640_9606.xml.gz` like the README?
-  (decision pending)
 - [ ] **Validation safety net**: keep `//TODO move upstream` in
   `src/variant/collection.rs` and watch whether `VALIDATION SAFETY NET` ever
   shows up in the rejection summary.
@@ -50,6 +47,7 @@
 - [x] Variant encoding bugs, README restructured, Apache-2.0, renamed to
   ENST2UniProt-mapper, all arguments optional except `--output`
 - [x] Committed idmapping parser, optional arguments, messages on stdout (812c789)
+- [x] `--uniprot-xml` help example now uses `UP000005640_9606.xml.gz`, like the README
 - [x] Repo restructure:
   - `pipeline/entry.rs` → `uniprot_entries.rs`, `fallback.rs` → `ensembl_entries.rs`
   - `try_add_variant` / `retain_valid` → `variant/collection.rs` (shares

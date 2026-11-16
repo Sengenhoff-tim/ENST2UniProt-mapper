@@ -57,7 +57,7 @@ pub(crate) struct Cli {
     #[arg(long, default_value_t = true, value_parser = clap::value_parser!(bool), action = clap::ArgAction::Set, num_args = 0..=1, require_equals = true, default_missing_value = "true")]
     pub(crate) include_uniprot_variants: bool,
 
-    /// UniProt XML file (e.g. a UniProtKB download or `uniprot_sprot.xml.gz`;
+    /// UniProt XML file (e.g. a UniProtKB download or `UP000005640_9606.xml.gz`;
     /// `.gz` is decompressed transparently). Every entry in it is processed
     /// (except those in --exclude-accessions). If omitted, UniProt entries come
     /// only from --uniprot-api-fallback.
