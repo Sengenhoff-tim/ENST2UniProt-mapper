@@ -96,3 +96,11 @@ fn variant_on_isoform_prefixes_the_position() {
     let lines = iso_variant("P1-2", "VAR_1", 5, 6, "GH", "A").ft_lines();
     assert_eq!(lines[0], "FT   VARIANT         P1-2:5..6");
 }
+
+#[test]
+fn qualifier_values_double_their_quotes() {
+    assert_eq!(
+        ft_qualifier("note", r#"in "isoform 2""#),
+        r#"FT                   /note="in ""isoform 2""""#
+    );
+}

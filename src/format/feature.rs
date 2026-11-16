@@ -21,11 +21,11 @@ pub(super) fn var_seq_ft_lines(feature: &Feature, entry: &UniProtEntry) -> Optio
         None if desc.is_empty() => "Missing".to_string(),
         None => format!("Missing ({})", desc),
     };
-    lines.extend(wrap_ft_qualifier("note", &note));
+    lines.push(ft_qualifier("note", &note));
 
     let evidence = format_evidence_string(feature, entry);
     if !evidence.is_empty() {
-        lines.extend(wrap_ft_qualifier("evidence", &evidence));
+        lines.push(ft_qualifier("evidence", &evidence));
     }
 
     // The FT id falls back to the evidence string when the feature has no id.
@@ -36,7 +36,7 @@ pub(super) fn var_seq_ft_lines(feature: &Feature, entry: &UniProtEntry) -> Optio
         .map(str::to_string)
         .or_else(|| (!evidence.is_empty()).then_some(evidence));
     if let Some(id) = id {
-        lines.extend(wrap_ft_qualifier("id", &id));
+        lines.push(ft_qualifier("id", &id));
     }
 
     Some(lines)
@@ -59,8 +59,8 @@ impl Variant {
         } else {
             "Missing".to_string()
         };
-        lines.extend(wrap_ft_qualifier("note", &note));
-        lines.push(format!("{}/{}=\"{}\"", FT_INDENT, "id", self.id));
+        lines.push(ft_qualifier("note", &note));
+        lines.push(ft_qualifier("id", &self.id));
         lines
     }
 }
@@ -85,9 +85,16 @@ fn format_ft_position_line(
     format!("FT   {:<16}{}", key, pos)
 }
 
-fn wrap_ft_qualifier(qualifier: &str, value: &str) -> Vec<String> {
-    let full = format!("/{}=\"{}\"", qualifier, value);
-    vec![format!("{}{}", FT_INDENT, full)]
+/// One FT qualifier line, e.g. `FT                   /note="A -> B"`. Long
+/// values are not wrapped. A `"` in `value` is doubled, as in UniProt flat
+/// files.
+fn ft_qualifier(qualifier: &str, value: &str) -> String {
+    format!(
+        "{}/{}=\"{}\"",
+        FT_INDENT,
+        qualifier,
+        value.replace('"', "\"\"")
+    )
 }
 
 /// Resolves the feature's evidence keys against the entry's `<evidence>`
