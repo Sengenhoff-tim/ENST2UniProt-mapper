@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
@@ -18,7 +18,7 @@ use crate::variant::Variant;
 
 use super::{
     ensembl_entries::handle_unmapped_transcripts,
-    input::{ensembl_fallback_candidates, extend_with_mapped_accessions, read_omit_list},
+    mapping::{ensembl_fallback_candidates, extend_with_mapped_accessions},
     uniprot_entries::{EntryContext, process_entries},
 };
 
@@ -70,7 +70,10 @@ pub(crate) async fn run(opts: RunOptions) -> Result<()> {
     extend_with_mapped_accessions(&mut accessions, global_sample_variants.keys(), &id_mapping);
 
     // The exclude list applies to both the ensured accessions and the XML file.
-    let omit = read_omit_list(opts.exclude_accessions.as_deref())?;
+    let omit: HashSet<UniProtCanonId> = match &opts.exclude_accessions {
+        Some(path) => parse_accession_list(path)?.into_iter().collect(),
+        None => HashSet::new(),
+    };
     if !omit.is_empty() {
         accessions.retain(|id| !omit.contains(id));
     }

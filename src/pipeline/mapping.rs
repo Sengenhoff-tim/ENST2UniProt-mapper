@@ -1,8 +1,4 @@
 use std::collections::{HashMap, HashSet};
-use std::io::BufRead;
-use std::path::Path;
-
-use anyhow::Result;
 
 use crate::shared_types::{EnsemblId, UniProtCanonId};
 
@@ -31,24 +27,6 @@ pub(super) fn extend_with_mapped_accessions<'a>(
             }
         }
     }
-}
-
-/// Reads the accessions to omit, one per line. No path means nothing is omitted.
-pub(super) fn read_omit_list(path: Option<&Path>) -> Result<HashSet<UniProtCanonId>> {
-    Ok(match path {
-        Some(path) => {
-            let file = std::fs::File::open(path)?;
-            std::io::BufReader::new(file)
-                .lines()
-                .collect::<std::io::Result<Vec<String>>>()?
-                .iter()
-                .map(|line| line.trim())
-                .filter(|s| !s.is_empty())
-                .map(UniProtCanonId::new)
-                .collect()
-        }
-        None => HashSet::new(),
-    })
 }
 
 /// Sample-variant ENSTs that no processed UniProt entry consumed: no id
@@ -94,5 +72,5 @@ pub(super) fn ensembl_fallback_candidates<'a>(
 }
 
 #[cfg(test)]
-#[path = "tests/test_input.rs"]
+#[path = "tests/test_mapping.rs"]
 mod tests;

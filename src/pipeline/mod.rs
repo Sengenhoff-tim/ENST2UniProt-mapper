@@ -17,8 +17,8 @@
 //!    flat-file entries
 
 mod ensembl_entries;
-mod input;
 mod log;
+mod mapping;
 mod run;
 mod uniprot_entries;
 

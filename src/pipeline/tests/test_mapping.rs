@@ -1,5 +1,5 @@
 use super::*;
-use crate::test_support::{strs, write_file};
+use crate::test_support::strs;
 
 fn enst(id: &str) -> EnsemblId {
     EnsemblId::new(id)
@@ -30,19 +30,6 @@ fn extends_accessions_in_transcript_order_without_duplicates() {
 
     // ENST1 is visited before ENST2; P1 was already present; ENST9 isn't a sample transcript.
     assert_eq!(strs(&accessions), ["P1", "P3", "P2"]);
-}
-
-#[test]
-fn omit_list_is_empty_without_a_file() {
-    assert!(read_omit_list(None).unwrap().is_empty());
-}
-
-#[test]
-fn omit_list_reads_trimmed_lines() {
-    let dir = tempfile::tempdir().unwrap();
-    let path = write_file(&dir, "omit.txt", "P1\n  P2 \n\n");
-    let omit = read_omit_list(Some(&path)).unwrap();
-    assert_eq!(omit, [acc("P1"), acc("P2")].into());
 }
 
 #[test]
