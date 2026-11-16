@@ -93,7 +93,7 @@ pub(crate) fn parse_uniprot_xml<B: BufRead>(
     }
 
     info!(
-        "{}: read {} entries, kept {}, omitted {}",
+        "{}: read {} entries, kept {}, skipped {} (excluded, duplicate, or without accession/sequence)",
         source,
         seen,
         entries.len(),

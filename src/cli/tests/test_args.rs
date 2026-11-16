@@ -59,3 +59,18 @@ fn only_the_output_is_required() {
     assert!(cli.uniprot_xml.is_none() && cli.sample_variants.is_none());
     assert!(Cli::try_parse_from(["enst2uniprot-mapper"]).is_err());
 }
+
+#[test]
+fn api_max_attempts_is_limited_to_1_through_20() {
+    assert_eq!(parse(&["--api-max-attempts", "20"]).api_max_attempts, 20);
+    for bad in ["0", "21"] {
+        let args = [
+            "enst2uniprot-mapper",
+            "--output",
+            "o",
+            "--api-max-attempts",
+            bad,
+        ];
+        assert!(Cli::try_parse_from(args).is_err(), "{bad}");
+    }
+}

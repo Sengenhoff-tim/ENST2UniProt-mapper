@@ -96,7 +96,7 @@ pub(crate) struct Cli {
 
     /// Number of attempts (including the first) before a failed fetch is
     /// treated as fatal and the program exits.
-    #[arg(long, default_value_t = DEFAULT_MAX_ATTEMPTS)]
+    #[arg(long, default_value_t = DEFAULT_MAX_ATTEMPTS, value_parser = clap::value_parser!(u32).range(1..=20))]
     pub(crate) api_max_attempts: u32,
 
     /// Base backoff, in milliseconds, between retry attempts. Doubles after

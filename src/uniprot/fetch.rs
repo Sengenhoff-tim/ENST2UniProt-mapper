@@ -1,11 +1,11 @@
 use std::collections::{HashMap, HashSet};
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result};
 use futures::stream::{self, StreamExt};
 use tracing::{info, warn};
 
 use crate::shared_types::UniProtCanonId;
-use crate::util::{RateLimiter, RetryConfig, with_retries};
+use crate::util::{RateLimiter, RetryConfig, http_status_error, with_retries};
 
 use super::{
     batch::{batch_accessions, build_uniprot_stream_url},
@@ -45,7 +45,10 @@ async fn fetch_uniprot_batch(
             if !response.status().is_success() {
                 let status = response.status();
                 let body = response.text().await.unwrap_or_default();
-                return Err(anyhow!("UniProt request failed: HTTP {}: {}", status, body));
+                return Err(http_status_error(
+                    status,
+                    format!("UniProt request failed: HTTP {}: {}", status, body),
+                ));
             }
 
             let body = response

@@ -58,3 +58,37 @@ async fn gives_up_after_max_attempts() {
     );
     assert!(err.contains("down"), "{err}");
 }
+
+#[tokio::test]
+async fn permanent_errors_are_not_retried() {
+    let calls = Cell::new(0);
+    let result: Result<()> = with_retries("op", &config(5), || {
+        calls.set(calls.get() + 1);
+        async {
+            Err(http_status_error(
+                StatusCode::NOT_FOUND,
+                "HTTP 404".to_string(),
+            ))
+        }
+    })
+    .await;
+    assert_eq!(calls.get(), 1);
+    assert!(format!("{:#}", result.unwrap_err()).contains("not retried"));
+}
+
+#[test]
+fn rate_limits_and_server_errors_stay_retryable() {
+    for status in [StatusCode::TOO_MANY_REQUESTS, StatusCode::BAD_GATEWAY] {
+        let err = http_status_error(status, String::new());
+        assert!(err.downcast_ref::<PermanentError>().is_none(), "{status}");
+    }
+}
+
+#[test]
+fn backoff_doubles_and_is_capped_without_overflow() {
+    assert_eq!(backoff_ms(500, 1), 500);
+    assert_eq!(backoff_ms(500, 3), 2000);
+    assert_eq!(backoff_ms(500, 30), MAX_BACKOFF_MS);
+    assert_eq!(backoff_ms(500, 100), MAX_BACKOFF_MS);
+    assert_eq!(backoff_ms(u64::MAX, 2), MAX_BACKOFF_MS);
+}

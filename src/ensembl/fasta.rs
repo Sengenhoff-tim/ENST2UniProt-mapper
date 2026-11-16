@@ -8,7 +8,7 @@ use tracing::{info, warn};
 use crate::shared_types::{EnsemblId, Sequence};
 use crate::util::open_maybe_gz;
 
-use super::api::strip_stop_codon;
+use super::sequence::strip_stop_codon;
 
 /// Stage label for log events of this reader.
 const STAGE: &str = "ENSEMBL FASTA";

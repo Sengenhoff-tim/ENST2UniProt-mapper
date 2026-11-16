@@ -3,6 +3,7 @@
 
 mod api;
 mod fasta;
+mod sequence;
 
 pub(crate) use api::fetch_ensembl_sequences;
 pub(crate) use fasta::load_ensembl_fasta;

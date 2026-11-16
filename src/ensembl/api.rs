@@ -1,6 +1,8 @@
 use crate::shared_types::{EnsemblId, Sequence};
-use crate::util::{RetryConfig, with_retries};
-use anyhow::{Context, Result, anyhow};
+use crate::util::{RetryConfig, http_status_error, with_retries};
+
+use super::sequence::strip_stop_codon;
+use anyhow::{Context, Result};
 use std::collections::HashMap;
 
 const MAX_ENSEMBL_BATCH_SIZE: usize = 50;
@@ -40,10 +42,13 @@ async fn fetch_ensembl_sequence_batch(
 
             if !response.status().is_success() {
                 let status = response.status();
-                return Err(anyhow!(
-                    "{},Ensembl sequence request failed: HTTP {}",
-                    ids.join("|"),
-                    status
+                return Err(http_status_error(
+                    status,
+                    format!(
+                        "{},Ensembl sequence request failed: HTTP {}",
+                        ids.join("|"),
+                        status
+                    ),
                 ));
             }
 
@@ -55,23 +60,6 @@ async fn fetch_ensembl_sequence_batch(
         },
     )
     .await
-}
-
-/// Ensembl occasionally returns a translated protein sequence with containing '*' stop-codon marker (e.g. for select readthrough transcripts).
-/// Sequence is assumed to stop at the first stop codon
-pub(super) fn strip_stop_codon(enst: &str, seq: String) -> String {
-    match seq.find('*') {
-        Some(pos) => {
-            tracing::info!(
-                enst = enst,
-                "{}, sequence contained '*' stop codon at position {}; amino acids after are discarded",
-                enst,
-                pos
-            );
-            seq[..pos].to_string()
-        }
-        None => seq,
-    }
 }
 
 /// Fetches protein sequences for `enst_ids` from the Ensembl REST API, in
@@ -120,7 +108,3 @@ pub(crate) async fn fetch_ensembl_sequences(
         .filter_map(|id| sequences.remove(id.as_str()).map(|seq| (id.clone(), seq)))
         .collect()
 }
-
-#[cfg(test)]
-#[path = "tests/test_api.rs"]
-mod tests;
