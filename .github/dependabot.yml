@@ -1,0 +1,18 @@
+# Weekly update PRs for crates and GitHub Actions; CI (ci.yml) checks each one.
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # Semver-compatible updates in one PR; breaking ones (e.g. quick-xml,
+      # reqwest) still get their own PR each.
+      cargo-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
