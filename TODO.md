@@ -13,13 +13,6 @@
     "async kept for EBI" comments (`MAX_CONCURRENT_ENTRIES`, `process_entries` call)
   - replace the concurrency in `process_entries` with a sequential loop
     (see the TODO comment in `pipeline/uniprot_entries.rs`)
-- [ ] **GitHub repo**: before moving it to the shared repo, ask the supervisor
-  who holds the rights (HiWi question)
-- [ ] **Validate the README**
-  - download sources and the reference proteome recommendation, including
-    what the `_additional` files contain
-  - how the diagram and the `<details>` blocks render on GitHub
-  - wording
 - [ ] **Validation safety net**: keep `//TODO move upstream` in
   `src/variant/collection.rs` and watch whether `VALIDATION SAFETY NET` ever
   shows up in the rejection summary.
